@@ -1,0 +1,7 @@
+{
+  "name": "플로우업(FlowUp)",
+  "description": "참가자들의 몰입과 성장을 돕는 인터랙티브 워크숍 허브입니다. 출석체크부터 팀빌딩, 실시간 피드백까지 워크숍의 모든 과정을 하나의 흐름으로 만듭니다.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

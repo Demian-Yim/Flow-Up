@@ -1,0 +1,56 @@
+
+import React, { useState } from 'react';
+import Spinner from '../../components/Spinner';
+import { Lightbulb, RefreshCw } from 'lucide-react';
+import { generateMotivation } from '../../services/geminiService';
+
+const MotivationView: React.FC = () => {
+    const [topic, setTopic] = useState('');
+    const [quote, setQuote] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleGenerate = async () => {
+        setIsLoading(true);
+        const result = await generateMotivation(topic || '도전과 성장');
+        setQuote(result);
+        setIsLoading(false);
+    };
+
+    return (
+        <div className="max-w-2xl mx-auto text-center">
+            <div className="p-4 inline-block rounded-2xl bg-gradient-to-br from-brand-amber to-orange-500 mb-4">
+                <Lightbulb className="h-12 w-12 text-white" />
+            </div>
+            <h2 className="text-3xl font-bold mb-2">에너지 부스터 🔥</h2>
+            <p className="text-slate-400 mb-6">워크숍의 흐름에 맞는 동기부여 명언으로 에너지를 충전하세요.</p>
+
+            <div className="flex flex-col sm:flex-row gap-4 mb-8">
+                 <input
+                    type="text"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    placeholder="명언 주제 (예: 팀워크, 혁신...)"
+                    className="flex-grow w-full px-4 py-3 bg-slate-800 text-white border-2 border-slate-700 rounded-lg focus:outline-none focus:border-brand-purple transition-colors"
+                />
+                <button
+                    onClick={handleGenerate}
+                    disabled={isLoading}
+                    className="flex items-center justify-center gap-2 bg-gradient-to-r from-brand-indigo to-brand-purple text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                    {isLoading ? <Spinner /> : <><RefreshCw size={18} /><span>새 명언 받기</span></>}
+                </button>
+            </div>
+
+
+            {quote && (
+                <div className="fade-in">
+                     <blockquote className="relative p-8 bg-slate-800 rounded-2xl border-l-4 border-brand-amber">
+                        <p className="text-2xl italic font-medium text-white">"{quote}"</p>
+                    </blockquote>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default MotivationView;
