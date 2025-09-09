@@ -1,95 +1,135 @@
+import { GoogleGenAI, Type } from "@google/genai";
 
-import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
-
+// API 키 존재 여부를 먼저 확인
 const API_KEY = process.env.API_KEY;
+const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
 
-if (!API_KEY) {
-  // In a real app, you might want to handle this more gracefully.
-  // For this example, we'll proceed, and API calls will fail if no key is provided.
-  console.warn("API_KEY is not set. AI features will not work.");
-}
-
-const ai = new GoogleGenAI({ apiKey: API_KEY! });
-
-export async function generateIntroductions(name: string, job: string, interests: string): Promise<Record<string, string> | null> {
-    const prompt = `워크숍 참가자를 위한 자기소개를 3가지 스타일(전문가, 친근한, 유머러스)로 생성해줘. 각 스타일은 150자 이내로 작성해줘.
-    - 이름: ${name}
-    - 직업/소속: ${job}
-    - 관심사: ${interests}`;
-
+/**
+ * Generates three styles of introductions using the Gemini API.
+ * If the API key is not available, it returns a fallback response.
+ * @param name - The person's name.
+ * @param job - The person's job or affiliation.
+ * @param interests - The person's interests.
+ * @returns A promise that resolves to an object with 'expert', 'friendly', and 'humorous' introductions.
+ */
+export async function generateIntroductions(name: string, job: string, interests: string): Promise<Record<string, string>> {
+    if (!ai) {
+        console.warn("Gemini API key not found. Returning mock data for introductions.");
+        return {
+            expert: `${job} 전문가, ${name}입니다. ${interests}에 대한 깊이 있는 대화를 나누고 싶습니다.`,
+            friendly: `안녕하세요! ${interests}를 좋아하는 ${name}입니다. 오늘 잘 부탁드려요!`,
+            humorous: `팀의 활력소가 될 ${name}입니다. ${job}도 하고 ${interests}도 즐기는 열정맨이죠!`
+        };
+    }
     try {
-        const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+        const prompt = `${name}이라는 이름의 사람을 위한 자기소개를 3가지 스타일로 작성해줘. 직업은 ${job}이고, 관심사는 ${interests}야. 각 스타일은 전문가(expert), 친근한(friendly), 유머러스(humorous) 스타일이야. 각 자기소개는 100자 이내로 짧고 간결하게 작성해줘.`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.OBJECT,
                     properties: {
-                        expert: { type: Type.STRING, description: '전문적인 톤의 자기소개' },
-                        friendly: { type: Type.STRING, description: '친근한 톤의 자기소개' },
-                        humorous: { type: Type.STRING, description: '유머러스한 톤의 자기소개' },
+                        expert: {
+                            type: Type.STRING,
+                            description: "전문가 스타일의 자기소개"
+                        },
+                        friendly: {
+                            type: Type.STRING,
+                            description: "친근한 스타일의 자기소개"
+                        },
+                        humorous: {
+                            type: Type.STRING,
+                            description: "유머러스한 스타일의 자기소개"
+                        }
                     },
-                    required: ['expert', 'friendly', 'humorous'],
+                    required: ["expert", "friendly", "humorous"]
                 },
             },
         });
-        
-        const jsonString = response.text.trim();
-        return JSON.parse(jsonString);
+
+        const jsonText = response.text.trim();
+        return JSON.parse(jsonText);
 
     } catch (error) {
         console.error("Error generating introductions:", error);
-        // Return mock data if API fails
         return {
-            expert: `안녕하세요, ${job} 직무를 맡고 있는 ${name}입니다. ${interests}에 관심이 많으며, 이번 워크숍을 통해 새로운 인사이트를 얻고자 합니다.`,
-            friendly: `반가워요! ${name}이라고 해요. 저는 ${job}이고, 요즘 ${interests}에 푹 빠져있답니다! 여러분과 즐겁게 소통하고 싶어요.`,
-            humorous: `여러분의 비타민, ${name}입니다! ${job}으로 일하고 있지만, 사실 제 본업은 ${interests} 전문가입니다. 잘 부탁드려요!`,
+            expert: "전문가 스타일 자기소개를 생성하는 데 실패했습니다.",
+            friendly: "친근한 스타일 자기소개를 생성하는 데 실패했습니다.",
+            humorous: "유머러스한 스타일 자기소개를 생성하는 데 실패했습니다."
         };
     }
 }
 
+/**
+ * Generates a list of team names based on keywords using the Gemini API.
+ * Returns a fallback list if the API key is not available.
+ * @param keywords - Keywords describing the team's characteristics.
+ * @returns A promise that resolves to an array of suggested team names.
+ */
 export async function generateTeamNames(keywords: string): Promise<string[]> {
-    const prompt = `다음 키워드를 바탕으로 창의적이고 기억하기 쉬운 팀명 5개를 제안해줘. 각 팀명은 3-8글자 사이, 긍정적이고 발음하기 쉬워야 해.
-    - 키워드: ${keywords}`;
-
+    if (!ai) {
+        console.warn("Gemini API key not found. Returning mock data for team names.");
+        return ["팀 브레이커", "아이디어 팩토리", "챌린지 위너스", "시너지 크루", "퓨처 파이오니어"];
+    }
     try {
-        const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+        const prompt = `워크숍에서 사용할 팀 이름을 5개 추천해줘. 팀의 특징을 나타내는 키워드는 '${keywords}'야. 창의적이고 기억하기 쉬운 이름으로 추천해줘.`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
             contents: prompt,
-             config: {
+            config: {
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.OBJECT,
                     properties: {
                         teamNames: {
                             type: Type.ARRAY,
-                            items: { type: Type.STRING }
+                            items: {
+                                type: Type.STRING,
+                            },
+                            description: "추천된 팀 이름 목록"
                         }
                     },
-                    required: ['teamNames']
-                }
-            }
+                    required: ["teamNames"]
+                },
+            },
         });
-        const jsonString = response.text.trim();
-        const parsed = JSON.parse(jsonString);
-        return parsed.teamNames || [];
+        
+        const jsonText = response.text.trim();
+        const parsed = JSON.parse(jsonText);
+        return Array.isArray(parsed.teamNames) ? parsed.teamNames : [];
+
     } catch (error) {
         console.error("Error generating team names:", error);
-        return ["알파", "브라보", "찰리", "델타", "에코"];
+        return ["팀 브레이커", "아이디어 팩토리", "챌린지 위너스", "시너지 크루", "퓨처 파이오니어"];
     }
 }
 
+/**
+ * Generates a motivational quote based on a topic using the Gemini API.
+ * Returns a fallback quote if the API key is missing.
+ * @param topic - The topic for the motivational quote.
+ * @returns A promise that resolves to a motivational quote string.
+ */
 export async function generateMotivation(topic: string): Promise<string> {
-    const prompt = `${topic}와(과) 관련된, 워크숍 참가자들에게 영감을 줄 수 있는 짧고 강력한 동기부여 명언을 하나 생성해줘.`;
+    if (!ai) {
+        console.warn("Gemini API key not found. Returning mock data for motivation.");
+        return "가장 큰 위험은 아무런 위험도 감수하지 않는 것이다. - 마크 주커버그";
+    }
     try {
-        const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+        const prompt = `워크숍 참가자들에게 동기부여가 될 만한 짧은 명언을 하나 만들어줘. 주제는 '${topic}'이야. 긍정적이고 힘이 되는 메시지로 작성해줘.`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
             contents: prompt,
         });
-        return response.text;
+        
+        return response.text.trim().replace(/"/g, '');
     } catch (error) {
         console.error("Error generating motivation:", error);
-        return "가장 큰 위험은 아무런 위험도 감수하지 않는 것이다.";
+        return "가장 큰 위험은 아무런 위험도 감수하지 않는 것이다. - 마크 주커버그";
     }
 }

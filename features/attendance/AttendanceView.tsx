@@ -1,9 +1,9 @@
-
-import React, { useState, useRef } from 'react';
-import { Camera, CheckCircle, UserPlus } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Camera, CheckCircle, UserPlus, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { useParticipantId } from '../../hooks/useParticipantId';
 import { Role } from '../../types';
+import confetti from 'canvas-confetti';
 
 const AttendanceView: React.FC = () => {
     const { role, participants, addParticipant } = useAppContext();
@@ -12,18 +12,67 @@ const AttendanceView: React.FC = () => {
     const [name, setName] = useState('');
     const [image, setImage] = useState<string | null>(null);
     const [error, setError] = useState('');
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isCameraReady, setIsCameraReady] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
 
     const alreadyCheckedIn = participants.find(p => p.id === participantId);
 
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImage(reader.result as string);
-            };
-            reader.readAsDataURL(file);
+    const startCamera = async () => {
+        setError('');
+        setImage(null);
+        setIsCameraReady(false);
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                    setIsCameraReady(true);
+                }
+            } catch (err) {
+                console.error("카메라 접근 오류:", err);
+                if (err instanceof Error) {
+                    if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+                        setError("카메라 권한이 거부되었습니다. 브라우저 설정에서 권한을 허용한 후, '카메라 다시 시작' 버튼을 눌러주세요.");
+                    } else {
+                        setError(`카메라를 시작할 수 없습니다: ${err.message}`);
+                    }
+                } else {
+                    setError("알 수 없는 카메라 오류가 발생했습니다.");
+                }
+            }
+        } else {
+            setError("이 브라우저에서는 카메라 기능을 지원하지 않습니다.");
+        }
+    };
+    
+    useEffect(() => {
+        if (role === Role.Participant && !alreadyCheckedIn) {
+            startCamera();
+        }
+        return () => {
+            if (videoRef.current && videoRef.current.srcObject) {
+                const stream = videoRef.current.srcObject as MediaStream;
+                stream.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, [role, alreadyCheckedIn]);
+
+    const handleTakePhoto = () => {
+        if (videoRef.current && canvasRef.current) {
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+            const dataUrl = canvas.toDataURL('image/png');
+            setImage(dataUrl);
+            
+            // Stop camera after taking photo
+            const stream = video.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+            setIsCameraReady(false);
         }
     };
     
@@ -33,7 +82,7 @@ const AttendanceView: React.FC = () => {
             return;
         }
         if (!image) {
-            setError('사진을 등록해주세요.');
+            setError('사진을 찍어주세요.');
             return;
         }
         setError('');
@@ -45,6 +94,7 @@ const AttendanceView: React.FC = () => {
             checkInImage: image,
         };
         addParticipant(newParticipant);
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
     };
 
     if (role === Role.Participant) {
@@ -70,39 +120,55 @@ const AttendanceView: React.FC = () => {
                         placeholder="이름을 입력하세요" 
                         className="w-full px-4 py-3 bg-slate-700 text-white border-2 border-slate-600 rounded-lg focus:outline-none focus:border-brand-purple"
                     />
-                    <div 
-                        className="w-full h-48 bg-slate-700 border-2 border-dashed border-slate-600 rounded-lg flex items-center justify-center cursor-pointer hover:border-brand-purple"
-                        onClick={() => fileInputRef.current?.click()}
-                    >
+                    <div className="w-full aspect-video bg-slate-700 border-2 border-dashed border-slate-600 rounded-lg flex items-center justify-center overflow-hidden">
                         {image ? (
-                            <img src={image} alt="Preview" className="w-full h-full object-cover rounded-lg" />
-                        ) : (
-                            <div className="text-center text-slate-400">
-                                <Camera className="w-12 h-12 mx-auto mb-2" />
-                                <p>클릭해서 사진 등록하기</p>
+                            <img src={image} alt="촬영된 사진" className="w-full h-full object-cover" />
+                        ) : error ? (
+                             <div className="text-center text-amber-400 p-4">
+                                <AlertTriangle className="w-12 h-12 mx-auto mb-2" />
+                                <p className="font-bold">카메라 오류</p>
+                                <p className="text-sm text-slate-300">{error}</p>
                             </div>
+                        ) : (
+                            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover"></video>
                         )}
+                        <canvas ref={canvasRef} className="hidden"></canvas>
                     </div>
-                    <input 
-                        type="file" 
-                        accept="image/*" 
-                        ref={fileInputRef}
-                        onChange={handleImageChange}
-                        className="hidden" 
-                    />
-                    {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-                    <button 
-                        onClick={handleCheckIn} 
-                        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-brand-indigo to-brand-purple text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:opacity-90 transition-opacity"
-                    >
-                        <UserPlus />
-                        <span>체크인하기</span>
-                    </button>
+
+                    {error && (
+                         <button 
+                            onClick={startCamera} 
+                            className="w-full flex items-center justify-center gap-2 bg-brand-amber text-black font-bold py-3 px-6 rounded-lg shadow-lg hover:opacity-90 transition-opacity"
+                        >
+                            <RefreshCw />
+                            <span>카메라 다시 시작</span>
+                        </button>
+                    )}
+
+                    {!image ? (
+                        <button 
+                            onClick={handleTakePhoto}
+                            disabled={!isCameraReady}
+                            className="w-full flex items-center justify-center gap-2 bg-slate-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-slate-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <Camera />
+                            <span>사진 찍기</span>
+                        </button>
+                    ) : (
+                         <button 
+                            onClick={handleCheckIn} 
+                            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-brand-indigo to-brand-purple text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:opacity-90 transition-opacity"
+                        >
+                            <UserPlus />
+                            <span>이 사진으로 체크인하기</span>
+                        </button>
+                    )}
                 </div>
             </div>
         );
     }
     
+    // Admin View
     return (
         <div className="bg-slate-800 p-6 rounded-2xl">
             <h2 className="text-2xl font-bold mb-4">참가자 체크인 현황 ({participants.length}명)</h2>
