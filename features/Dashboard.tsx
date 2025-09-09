@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Tool } from '../types';
 import { TOOLS } from '../constants';
@@ -12,8 +11,8 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ onSelectTool }) => {
     const { currentUser } = useAppContext();
     
-    const welcomeTitle = currentUser ? `${currentUser.name}님, 당신의 아이디어가 빛날 시간이에요! ✨` : '워크숍의 새로운 흐름에 올라탈 준비, 되셨나요?';
-    const welcomeSubtitle = currentUser ? '아래 도구들로 잠재력을 깨우고, 워크숍을 레벨업 시켜보세요!' : '탭 한 번으로, 평범한 워크숍이 특별한 경험으로 바뀝니다.';
+    const welcomeTitle = currentUser ? `👋 ${currentUser.name}님, 환영합니다!` : 'Flow~ Up에 오신 것을 환영합니다!';
+    const welcomeSubtitle = `물 흐르듯 자연스러운 워크숍을 위해, 아래에서 원하는 기능을 선택해 보아요~`;
 
     return (
         <div className="space-y-8">

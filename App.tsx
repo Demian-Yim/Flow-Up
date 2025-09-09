@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Dashboard from './features/Dashboard';
 import AttendanceView from './features/attendance/AttendanceView';
@@ -40,7 +39,7 @@ const App: React.FC = () => {
     return (
         <div className="min-h-screen bg-slate-900 text-white">
             <Header
-                title={activeTool ? activeTool.title : '플로우업(FlowUp)'}
+                title={activeTool ? activeTool.title : 'Flow~ Up (플로우~ 업)'}
                 showBackButton={!!activeTool}
                 onBack={() => setActiveTool(null)}
                 currentRole={role}
