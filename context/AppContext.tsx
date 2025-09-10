@@ -1,7 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { Participant, Role, Introduction, Team, Meal, MealSelection, Feedback, NetworkingInterest, NetworkingMatch, AmbiancePlaylist, AmbianceMood, TeamScore, WorkshopSummary } from '../types';
-import { INITIAL_MEALS } from '../constants';
-import { generateNetworkingMatches, generatePlaylist, generateWorkshopSummaries } from '../services/geminiService';
+import { generateNetworkingMatches, generatePlaylist, generateWorkshopSummaries, generateMenuItems } from '../services/geminiService';
 
 interface AppContextType {
     role: Role;
@@ -18,7 +17,9 @@ interface AppContextType {
     moveParticipantToTeam: (participantId: string, newTeamId: string) => void;
     scores: TeamScore[];
     updateScore: (teamId: string, delta: number) => void;
+    restaurantName: string;
     meals: Meal[];
+    fetchMenu: (restaurantQuery: string) => Promise<void>;
     addMeal: (meal: Omit<Meal, 'id'>) => void;
     updateMeal: (meal: Meal) => void;
     deleteMeal: (mealId: number) => void;
@@ -49,7 +50,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const [introductions, setIntroductions] = useState<Introduction[]>([]);
     const [teams, setTeams] = useState<Team[]>([]);
     const [scores, setScores] = useState<TeamScore[]>([]);
-    const [meals, setMeals] = useState<Meal[]>(INITIAL_MEALS);
+    const [restaurantName, setRestaurantName] = useState('순남시래기 방배점');
+    const [meals, setMeals] = useState<Meal[]>([]);
     const [selections, setSelections] = useState<MealSelection[]>([]);
     const [feedback, setFeedback] = useState<Feedback[]>([]);
     const [networkingInterests, setNetworkingInterests] = useState<NetworkingInterest[]>([]);
@@ -71,7 +73,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                     setIntroductions(savedState.introductions || []);
                     setTeams(savedState.teams || []);
                     setScores(savedState.scores || []);
-                    setMeals(savedState.meals || INITIAL_MEALS);
+                    setRestaurantName(savedState.restaurantName || '순남시래기 방배점');
+                    setMeals(savedState.meals || []);
                     setSelections(savedState.selections || []);
                     setFeedback(savedState.feedback || []);
                     setNetworkingInterests(savedState.networkingInterests || []);
@@ -93,6 +96,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 introductions,
                 teams,
                 scores,
+                restaurantName,
                 meals,
                 selections,
                 feedback,
@@ -105,7 +109,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         } catch (error) {
             console.error("Failed to save state to local storage", error);
         }
-    }, [role, participants, introductions, teams, scores, meals, selections, feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated]);
+    }, [role, participants, introductions, teams, scores, restaurantName, meals, selections, feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated]);
 
     const addParticipant = (participant: Participant) => {
         setParticipants(prev => {
@@ -177,7 +181,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const moveParticipantToTeam = (participantId: string, newTeamId: string) => {
         let participantToMove: Participant | undefined;
         
-        // Find and remove participant from the old team
         const teamsWithoutParticipant = teams.map(team => {
             const memberIndex = team.members.findIndex(m => m.id === participantId);
             if (memberIndex > -1) {
@@ -192,7 +195,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         if (!participantToMove) return;
 
-        // Add participant to the new team
         const newTeams = teamsWithoutParticipant.map(team => {
             if (team.id === newTeamId) {
                 return {
@@ -217,6 +219,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
 
     // Meal management
+    const fetchMenu = async (restaurantQuery: string) => {
+        const newMealsData = await generateMenuItems(restaurantQuery);
+        // FIX: The `generateMenuItems` function returns meals without `id` and `stock`. This maps over the
+        // results to add a unique `id` and a default `stock` to each meal, ensuring compatibility with the `Meal[]` type.
+        const newMeals: Meal[] = newMealsData.map((meal, index) => ({
+            ...meal,
+            id: Date.now() + index,
+            stock: 20, // Set a default stock value
+        }));
+        setRestaurantName(restaurantQuery);
+        setMeals(newMeals);
+        setSelections([]); // Clear selections when menu changes
+    };
+
     const addMeal = (meal: Omit<Meal, 'id'>) => {
         const newMeal: Meal = { ...meal, id: Date.now() };
         setMeals(prev => [...prev, newMeal]);
@@ -229,7 +245,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const deleteMeal = (mealId: number) => {
         setMeals(prev => prev.filter(meal => meal.id !== mealId));
     };
-
 
     const addSelection = (selection: MealSelection) => {
         setSelections(prev => {
@@ -309,7 +324,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             introductions, addIntroduction,
             teams, setTeams: updateTeams, moveParticipantToTeam,
             scores, updateScore,
-            meals, addMeal, updateMeal, deleteMeal, 
+            restaurantName, meals, fetchMenu, addMeal, updateMeal, deleteMeal, 
             selections, addSelection,
             feedback, addFeedback, toggleFeedbackAddressed,
             networkingInterests, networkingMatches, addNetworkingInterest,

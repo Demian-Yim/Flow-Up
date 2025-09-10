@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { NetworkingInterest, NetworkingMatch, Song, Feedback, FeedbackCategory } from '../types';
+import { NetworkingInterest, NetworkingMatch, Song, Feedback, FeedbackCategory, Meal } from '../types';
 
 // API 키 존재 여부를 먼저 확인
 const API_KEY = process.env.API_KEY;
@@ -407,5 +407,65 @@ export async function generateMealReaction(mealName: string): Promise<string> {
     } catch (error) {
         console.error("Error generating meal reaction:", error);
         return fallback;
+    }
+}
+
+/**
+ * Generates a list of menu items for a given restaurant using the Gemini API.
+ * @param restaurantQuery - The name and location of the restaurant.
+ * @returns A promise that resolves to an array of Meal objects.
+ */
+export async function generateMenuItems(restaurantQuery: string): Promise<Omit<Meal, 'id' | 'stock'>[]> {
+    const fallbackMenu = [
+        { name: '시래기국 (예시)', description: '고소한 들깨가루가 일품인 대표 메뉴', price: 9000, image: 'https://images.unsplash.com/photo-1544026312-34a5a5b2bf5e?auto=format&fit=crop&w=800&q=60', isRecommended: true },
+        { name: '도마수육 정식 (예시)', description: '명이나물과 함께 즐기는 야들야들한 수육', price: 14000, image: 'https://images.unsplash.com/photo-1606525433842-61674415e18f?auto=format&fit=crop&w=800&q=60', isRecommended: true },
+    ];
+    if (!ai) {
+        console.warn("Gemini API key not found. Returning mock data for menu items.");
+        return fallbackMenu;
+    }
+    
+    try {
+        const prompt = `당신은 대한민국 맛집 메뉴판 전문가입니다. '${restaurantQuery}' 식당의 네이버 지도 정보를 기반으로, 대표 메뉴 5-7개를 찾아 아래 JSON 스키마에 맞춰 응답해주세요.
+- 각 메뉴에 대한 설명은 매력적으로 작성해주세요.
+- 가격은 숫자만 포함해야 합니다.
+- 각 메뉴에 어울리는, 저작권 문제가 없는 사실적인 음식 사진 URL도 함께 제공해주세요.`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        menus: {
+                            type: Type.ARRAY,
+                            description: "식당 메뉴 목록",
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    name: { type: Type.STRING, description: "메뉴 이름" },
+                                    description: { type: Type.STRING, description: "메뉴 설명" },
+                                    price: { type: Type.NUMBER, description: "메뉴 가격 (숫자)" },
+                                    image: { type: Type.STRING, description: "메뉴 이미지 URL" },
+                                    isRecommended: { type: Type.BOOLEAN, description: "추천 메뉴 여부 (선택 사항)" },
+                                },
+                                required: ["name", "description", "price", "image"]
+                            }
+                        }
+                    },
+                    required: ["menus"]
+                }
+            }
+        });
+        
+        const jsonText = response.text.trim();
+        const parsed = JSON.parse(jsonText);
+        return Array.isArray(parsed.menus) ? parsed.menus : fallbackMenu;
+
+    } catch (error) {
+        console.error("Error generating menu items:", error);
+        return fallbackMenu;
     }
 }
