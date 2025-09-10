@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { NetworkingInterest, NetworkingMatch, Song, Feedback, FeedbackCategory, Meal } from '../types';
+import { NetworkingInterest, NetworkingMatch, YouTubePlaylist, Feedback, FeedbackCategory, Meal } from '../types';
 
 // API 키 존재 여부를 먼저 확인
 const API_KEY = process.env.API_KEY;
@@ -225,23 +225,35 @@ ${JSON.stringify(participantData)}
 
 
 /**
- * Generates a playlist based on a mood using the Gemini API.
+ * Generates a list of YouTube playlists based on a mood using the Gemini API.
  * @param mood - The mood or theme for the playlist.
- * @returns A promise that resolves to an array of Song objects.
+ * @returns A promise that resolves to an array of YouTubePlaylist objects.
  */
-export async function generatePlaylist(mood: string): Promise<Song[]> {
+export async function generateYouTubePlaylists(mood: string): Promise<YouTubePlaylist[]> {
+    const fallbackPlaylist: YouTubePlaylist[] = [
+        { title: "[Playlist] 로맨틱한 재즈 선율과 함께하는 달콤한 휴식", description: "감미로운 재즈 음악으로 마음의 안정을 찾아보세요.", videoId: "dQw4w9WgXcQ", thumbnailUrl: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg" },
+        { title: "일할 때 듣기 좋은 Lo-fi hip hop", description: "집중력을 높여주는 편안한 로파이 음악 컬렉션입니다.", videoId: "5qap5aO4i9A", thumbnailUrl: "https://i.ytimg.com/vi/5qap5aO4i9A/hqdefault.jpg" },
+        { title: "신나는 K-Pop 아이돌 음악", description: "에너지가 필요할 때! 기분을 UP 시켜주는 K-Pop 히트곡 모음.", videoId: "3tmd-ClpJxA", thumbnailUrl: "https://i.ytimg.com/vi/3tmd-ClpJxA/hqdefault.jpg" },
+        { title: "영화처럼, 감동적인 영화음악 OST", description: "영화의 감동을 다시 한번! 웅장하고 아름다운 OST.", videoId: "s3_e8L_Jq_c", thumbnailUrl: "https://i.ytimg.com/vi/s3_e8L_Jq_c/hqdefault.jpg" },
+        { title: "비 오는 날 듣기 좋은 감성 발라드", description: "센치한 날, 마음을 울리는 감성 발라드 플레이리스트.", videoId: "8_4O_12c4uM", thumbnailUrl: "https://i.ytimg.com/vi/8_4O_12c4uM/hqdefault.jpg" },
+        { title: "상쾌한 아침을 여는 팝송", description: "기분 좋은 하루의 시작을 위한 상큼한 팝송 모음입니다.", videoId: "a_j_3-b-3_g", thumbnailUrl: "https://i.ytimg.com/vi/a_j_3-b-3_g/hqdefault.jpg" },
+    ];
+
     if (!ai) {
         console.warn("Gemini API key not found. Returning mock data for playlist.");
-        return [
-            { title: "Mockingbird", artist: "Eminem" },
-            { title: "Coffee", artist: "Beabadoobee" },
-            { title: "Sunday Morning", artist: "Maroon 5" },
-            { title: "Good Days", artist: "SZA" },
-            { title: "Daylight", artist: "David Kushner" },
-        ];
+        return fallbackPlaylist;
     }
+
     try {
-        const prompt = `'${mood}' 테마에 어울리는 노래 5곡을 추천해줘. 각 노래는 제목과 아티스트를 포함해야 해.`;
+        const prompt = `당신은 워크숍 분위기를 위한 음악 큐레이터입니다. '${mood}' 분위기에 어울리는 유튜브 플레이리스트나 음악 영상 6개를 추천해주세요. 다양한 장르(가요, 팝, 재즈, 사운드트랙, 인스트루멘탈 등)를 포함해주세요.
+
+각 추천 항목은 아래 JSON 스키마를 따르는 객체여야 합니다.
+- title: 영상 또는 플레이리스트의 제목
+- description: 추천 이유나 영상에 대한 간략한 설명 (50자 내외)
+- videoId: 실제 존재할 법한 유튜브 영상 ID (예: 'dQw4w9WgXcQ' 형식의 11자리 영문/숫자 조합)
+- thumbnailUrl: 'https://i.ytimg.com/vi/[videoId]/hqdefault.jpg' 형식의 썸네일 URL. [videoId] 부분은 생성한 videoId로 대체해주세요.
+
+결과는 6개의 객체를 포함하는 JSON 배열 형태로만 반환해주세요.`;
 
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
@@ -251,33 +263,36 @@ export async function generatePlaylist(mood: string): Promise<Song[]> {
                 responseSchema: {
                     type: Type.OBJECT,
                     properties: {
-                        playlist: {
+                         playlists: {
                             type: Type.ARRAY,
-                            description: "추천된 노래 목록",
+                            description: "추천된 유튜브 플레이리스트 목록",
                             items: {
                                 type: Type.OBJECT,
                                 properties: {
-                                    title: { type: Type.STRING, description: "노래 제목" },
-                                    artist: { type: Type.STRING, description: "아티스트 이름" },
+                                    title: { type: Type.STRING, description: "영상 제목" },
+                                    description: { type: Type.STRING, description: "영상 설명" },
+                                    videoId: { type: Type.STRING, description: "유튜브 비디오 ID" },
+                                    thumbnailUrl: { type: Type.STRING, description: "유튜브 썸네일 URL" },
                                 },
-                                required: ["title", "artist"],
+                                required: ["title", "description", "videoId", "thumbnailUrl"],
                             },
                         },
                     },
-                    required: ["playlist"],
+                    required: ["playlists"],
                 },
             },
         });
         
         const jsonText = response.text.trim();
         const parsed = JSON.parse(jsonText);
-        return Array.isArray(parsed.playlist) ? parsed.playlist : [];
+        return Array.isArray(parsed.playlists) ? parsed.playlists : fallbackPlaylist;
 
     } catch (error) {
         console.error("Error generating playlist:", error);
-        return [{ title: "플레이리스트 생성 실패", artist: "오류가 발생했습니다." }];
+        return fallbackPlaylist;
     }
 }
+
 
 /**
  * Generates summaries for workshop feedback and networking interests.

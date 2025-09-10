@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { Participant, Role, Introduction, Team, Meal, MealSelection, Feedback, NetworkingInterest, NetworkingMatch, AmbiancePlaylist, AmbianceMood, TeamScore, WorkshopSummary } from '../types';
-import { generateNetworkingMatches, generatePlaylist, generateWorkshopSummaries, generateMenuItems } from '../services/geminiService';
+import { generateNetworkingMatches, generateYouTubePlaylists, generateWorkshopSummaries, generateMenuItems } from '../services/geminiService';
 
 interface AppContextType {
     role: Role;
@@ -41,7 +41,49 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY = 'flow-up-app-state';
+const LOCAL_STORAGE_KEY = 'flow-link-app-state';
+
+const DEFAULT_AMBIANCE_PLAYLIST: AmbiancePlaylist = {
+    mood: 'Break',
+    playlists: [
+        {
+            title: "Welcome to Flow~ Link! 🎵",
+            description: "워크숍의 시작을 위한 환영 플레이리스트입니다. 관리자가 곧 분위기를 바꿀 수 있어요.",
+            videoId: "3tmd-ClpJxA",
+            thumbnailUrl: "https://i.ytimg.com/vi/3tmd-ClpJxA/hqdefault.jpg"
+        },
+        {
+            title: "편안한 라운지 재즈",
+            description: "대화와 휴식에 어울리는 부드러운 재즈 음악.",
+            videoId: "s3_e8L_Jq_c",
+            thumbnailUrl: "https://i.ytimg.com/vi/s3_e8L_Jq_c/hqdefault.jpg"
+        },
+        {
+            title: "Lo-fi Hip Hop Radio",
+            description: "집중하거나 휴식을 취할 때 듣기 좋은 비트.",
+            videoId: "5qap5aO4i9A",
+            thumbnailUrl: "https://i.ytimg.com/vi/5qap5aO4i9A/hqdefault.jpg"
+        },
+        {
+            title: "Refreshing Pop Songs",
+            description: "기분 전환을 위한 상쾌한 팝 음악 모음.",
+            videoId: "a_j_3-b-3_g",
+            thumbnailUrl: "https://i.ytimg.com/vi/a_j_3-b-3_g/hqdefault.jpg"
+        },
+        {
+            title: "감동적인 영화 OST",
+            description: "마음을 움직이는 아름다운 영화 사운드트랙.",
+            videoId: "8_4O_12c4uM",
+            thumbnailUrl: "https://i.ytimg.com/vi/8_4O_12c4uM/hqdefault.jpg"
+        },
+        {
+            title: "Acoustic Cafe Music",
+            description: "어쿠스틱 기타 선율과 함께하는 편안한 시간.",
+            videoId: "dQw4w9WgXcQ",
+            thumbnailUrl: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+        }
+    ]
+};
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
     const [role, setRole] = useState<Role>(Role.Participant);
@@ -78,13 +120,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                     setSelections(savedState.selections || []);
                     setFeedback(savedState.feedback || []);
                     setNetworkingInterests(savedState.networkingInterests || []);
-                    setAmbiancePlaylist(savedState.ambiancePlaylist || null);
+                    setAmbiancePlaylist(savedState.ambiancePlaylist || DEFAULT_AMBIANCE_PLAYLIST);
                     setWorkshopSummary(savedState.workshopSummary || null);
                     setIsAdminAuthenticated(savedState.isAdminAuthenticated || false);
                 }
+            } else {
+                 setAmbiancePlaylist(DEFAULT_AMBIANCE_PLAYLIST);
             }
         } catch (error) {
             console.error("Failed to load state from local storage", error);
+            setAmbiancePlaylist(DEFAULT_AMBIANCE_PLAYLIST);
         }
     }, []);
 
@@ -292,8 +337,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             Brainstorming: '창의적인 아이디어를 자극하는 영감 넘치는 음악',
             HighEnergy: '분위기를 끌어올리는 신나고 에너지 넘치는 음악'
         };
-        const songs = await generatePlaylist(moodMap[mood]);
-        setAmbiancePlaylist({ mood, songs });
+        const playlists = await generateYouTubePlaylists(moodMap[mood]);
+        setAmbiancePlaylist({ mood, playlists });
     };
 
     const generateWorkshopSummary = async () => {

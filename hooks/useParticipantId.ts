@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from 'react';
 
-const PARTICIPANT_ID_KEY = 'flowup-participant-id';
+const PARTICIPANT_ID_KEY = 'flowlink-participant-id';
 
 function generateId() {
     return `participant_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;

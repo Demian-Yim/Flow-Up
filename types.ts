@@ -81,14 +81,16 @@ export interface NetworkingMatch {
 
 export type AmbianceMood = 'Focus' | 'Break' | 'Brainstorming' | 'HighEnergy';
 
-export interface Song {
+export interface YouTubePlaylist {
     title: string;
-    artist: string;
+    description: string;
+    videoId: string;
+    thumbnailUrl: string;
 }
 
 export interface AmbiancePlaylist {
     mood: AmbianceMood;
-    songs: Song[];
+    playlists: YouTubePlaylist[];
 }
 
 export interface WorkshopSummary {

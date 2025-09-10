@@ -21,9 +21,33 @@ const AmbianceView: React.FC = () => {
         setIsLoading(false);
     };
 
+    const PlaylistGallery = () => (
+        <div className="mt-6">
+            {ambiancePlaylist && (
+                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 fade-in">
+                    {ambiancePlaylist.playlists.map((playlist, index) => (
+                        <a 
+                            key={index} 
+                            href={`https://www.youtube.com/watch?v=${playlist.videoId}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="bg-slate-800 rounded-lg overflow-hidden group transform hover:-translate-y-2 transition-transform duration-300 shadow-lg hover:shadow-brand-purple/50"
+                        >
+                            <img src={playlist.thumbnailUrl} alt={playlist.title} className="w-full h-40 object-cover" />
+                            <div className="p-4">
+                                <h4 className="font-bold text-white truncate group-hover:text-brand-amber">{playlist.title}</h4>
+                                <p className="text-sm text-slate-400 mt-1 h-10 overflow-hidden">{playlist.description}</p>
+                            </div>
+                        </a>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+
     if (role === '관리자') {
         return (
-            <div className="max-w-2xl mx-auto space-y-6">
+            <div className="max-w-4xl mx-auto space-y-6">
                 <div className="text-center">
                     <div className="p-4 inline-block rounded-2xl bg-gradient-to-br from-brand-indigo to-brand-purple mb-4">
                         <Music className="h-12 w-12 text-white" />
@@ -53,60 +77,32 @@ const AmbianceView: React.FC = () => {
                     </div>
                 </div>
                 
-                {isLoading && <Spinner />}
+                {isLoading && <div className="text-center py-8"><Spinner /><p className="mt-2 text-slate-300">AI가 유튜브에서 플레이리스트를 찾고 있습니다...</p></div>}
 
-                {ambiancePlaylist && !isLoading && (
-                    <div className="bg-slate-800 p-6 rounded-2xl fade-in">
-                        <h3 className={`text-xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r ${moodConfig[ambiancePlaylist.mood].gradient}`}>
-                            AI 추천 플레이리스트 for "{moodConfig[ambiancePlaylist.mood].text}"
-                        </h3>
-                        <ul className="space-y-3">
-                            {ambiancePlaylist.songs.map((song, index) => (
-                                <li key={index} className="flex items-center gap-4 bg-slate-700/50 p-3 rounded-lg">
-                                    <Music size={18} className="text-slate-400" />
-                                    <div>
-                                        <p className="font-bold text-white">{song.title}</p>
-                                        <p className="text-sm text-slate-400">{song.artist}</p>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
+                {!isLoading && ambiancePlaylist && <PlaylistGallery />}
             </div>
         );
     }
     
     // Participant View
+    if (!ambiancePlaylist) {
+        return (
+            <div className="text-center py-8">
+                <Spinner />
+                <p className="mt-2 text-slate-300">플레이리스트를 불러오는 중...</p>
+            </div>
+        );
+    }
+
+    const isDefaultPlaylist = ambiancePlaylist.playlists[0]?.title.includes("Welcome to Flow~ Link!");
+
     return (
-        <div className="max-w-md mx-auto text-center">
-            {ambiancePlaylist ? (
-                <div className="bg-slate-800 p-8 rounded-2xl fade-in">
-                    <p className="text-slate-400 mb-2">현재 분위기</p>
-                     <h2 className={`text-4xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r ${moodConfig[ambiancePlaylist.mood].gradient}`}>
-                        {moodConfig[ambiancePlaylist.mood].text}
-                    </h2>
-                    <div className="space-y-3 text-left">
-                        {ambiancePlaylist.songs.map((song, index) => (
-                             <div key={index} className="flex items-center gap-4 bg-slate-700/50 p-3 rounded-lg">
-                                <Music size={18} className="text-slate-400" />
-                                <div>
-                                    <p className="font-bold text-white">{song.title}</p>
-                                    <p className="text-sm text-slate-400">{song.artist}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            ) : (
-                <div className="bg-slate-800 p-8 rounded-2xl">
-                     <div className="p-4 inline-block rounded-2xl bg-gradient-to-br from-brand-indigo to-brand-purple mb-4">
-                        <Music className="h-12 w-12 text-white" />
-                    </div>
-                    <h2 className="text-3xl font-bold mb-2">분위기 메이커 🎶</h2>
-                    <p className="text-slate-400">관리자가 곧 분위기에 맞는 음악을 선곡할 거예요!</p>
-                </div>
-            )}
+        <div className="max-w-4xl mx-auto text-center fade-in">
+            <p className="text-slate-400 mb-2">{isDefaultPlaylist ? "워크숍을 위한 추천 음악" : "현재 분위기"}</p>
+            <h2 className={`text-4xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r ${moodConfig[ambiancePlaylist.mood].gradient}`}>
+                {isDefaultPlaylist ? "Welcome Playlist" : moodConfig[ambiancePlaylist.mood].text}
+            </h2>
+            <PlaylistGallery />
         </div>
     );
 };

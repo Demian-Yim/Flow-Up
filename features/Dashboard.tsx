@@ -11,7 +11,7 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ onSelectTool }) => {
     const { currentUser } = useAppContext();
     
-    const welcomeTitle = currentUser ? `👋 ${currentUser.name}님, 환영합니다!` : 'Flow~ Up에 오신 것을 환영합니다!';
+    const welcomeTitle = currentUser ? `👋 ${currentUser.name}님, 환영합니다!` : 'Flow~ Link에 오신 것을 환영합니다!';
     const welcomeSubtitle = `물 흐르듯 자연스러운 워크숍을 위해, 아래에서 원하는 기능을 선택해 보아요~`;
 
     return (

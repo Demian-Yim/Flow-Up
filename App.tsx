@@ -65,24 +65,27 @@ const App: React.FC = () => {
         }
     };
 
+    const isParticipantNavVisible = role === Role.Participant && activeTool;
+
     return (
-        <div className="min-h-screen bg-slate-900 text-white pb-32">
+        <div className={`min-h-screen bg-slate-900 text-white ${isParticipantNavVisible ? 'pb-24' : 'pb-16'}`}>
             <Header
-                title={activeTool ? activeTool.title : 'Flow~ Up (플로우~ 업)'}
+                title={activeTool ? activeTool.title : 'Flow~ Link'}
                 showBackButton={!!activeTool}
                 onBack={() => setActiveTool(null)}
             />
             <main className="p-4 sm:p-6 lg:p-8">
                 {renderActiveTool()}
             </main>
-            {role === Role.Participant && activeTool && (
+            {isParticipantNavVisible ? (
                 <ParticipantNav
                     onNav={handleNav}
                     currentIndex={activeToolIndex}
                     totalTools={TOOLS.length}
                 />
+            ) : (
+                <Footer />
             )}
-            <Footer />
         </div>
     );
 };
