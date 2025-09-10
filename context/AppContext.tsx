@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
-import { Participant, Role, Introduction, Team, Meal, MealSelection, Feedback, NetworkingInterest, NetworkingMatch, AmbiancePlaylist, AmbianceMood, TeamScore, WorkshopSummary } from '../types';
+import { Participant, Role, Introduction, Team, Meal, MealSelection, Feedback, NetworkingInterest, NetworkingMatch, AmbiancePlaylist, AmbianceMood, TeamScore, WorkshopSummary, RestaurantInfo } from '../types';
 import { generateNetworkingMatches, generateYouTubePlaylists, generateWorkshopSummaries, generateMenuItems } from '../services/geminiService';
 
 interface AppContextType {
@@ -17,7 +17,7 @@ interface AppContextType {
     moveParticipantToTeam: (participantId: string, newTeamId: string) => void;
     scores: TeamScore[];
     updateScore: (teamId: string, delta: number) => void;
-    restaurantName: string;
+    restaurantInfo: RestaurantInfo | null;
     meals: Meal[];
     fetchMenu: (restaurantQuery: string) => Promise<void>;
     addMeal: (meal: Omit<Meal, 'id'>) => void;
@@ -92,7 +92,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const [introductions, setIntroductions] = useState<Introduction[]>([]);
     const [teams, setTeams] = useState<Team[]>([]);
     const [scores, setScores] = useState<TeamScore[]>([]);
-    const [restaurantName, setRestaurantName] = useState('순남시래기 방배점');
+    const [restaurantInfo, setRestaurantInfo] = useState<RestaurantInfo | null>({name: '순남시래기 방배점', address: '', mapUrl: ''});
     const [meals, setMeals] = useState<Meal[]>([]);
     const [selections, setSelections] = useState<MealSelection[]>([]);
     const [feedback, setFeedback] = useState<Feedback[]>([]);
@@ -115,7 +115,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                     setIntroductions(savedState.introductions || []);
                     setTeams(savedState.teams || []);
                     setScores(savedState.scores || []);
-                    setRestaurantName(savedState.restaurantName || '순남시래기 방배점');
+                    setRestaurantInfo(savedState.restaurantInfo || {name: '순남시래기 방배점', address: '', mapUrl: ''});
                     setMeals(savedState.meals || []);
                     setSelections(savedState.selections || []);
                     setFeedback(savedState.feedback || []);
@@ -141,7 +141,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 introductions,
                 teams,
                 scores,
-                restaurantName,
+                restaurantInfo,
                 meals,
                 selections,
                 feedback,
@@ -154,7 +154,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         } catch (error) {
             console.error("Failed to save state to local storage", error);
         }
-    }, [role, participants, introductions, teams, scores, restaurantName, meals, selections, feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated]);
+    }, [role, participants, introductions, teams, scores, restaurantInfo, meals, selections, feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated]);
 
     const addParticipant = (participant: Participant) => {
         setParticipants(prev => {
@@ -256,7 +256,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const updateScore = (teamId: string, delta: number) => {
         setScores(prevScores => {
             const newScores = prevScores.map(s => 
-                s.teamId === teamId ? { ...s, score: Math.max(0, s.score + delta) } : s
+                s.teamId === teamId ? { ...s, score: Math.min(10000000, Math.max(0, s.score + delta * 10)) } : s
             );
             newScores.sort((a, b) => b.score - a.score);
             return newScores;
@@ -265,15 +265,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     // Meal management
     const fetchMenu = async (restaurantQuery: string) => {
-        const newMealsData = await generateMenuItems(restaurantQuery);
-        // FIX: The `generateMenuItems` function returns meals without `id` and `stock`. This maps over the
-        // results to add a unique `id` and a default `stock` to each meal, ensuring compatibility with the `Meal[]` type.
-        const newMeals: Meal[] = newMealsData.map((meal, index) => ({
+        const menuData = await generateMenuItems(restaurantQuery);
+        const newMeals: Meal[] = menuData.menus.map((meal, index) => ({
             ...meal,
             id: Date.now() + index,
-            stock: 20, // Set a default stock value
+            stock: 20,
         }));
-        setRestaurantName(restaurantQuery);
+        setRestaurantInfo(menuData.restaurantInfo);
         setMeals(newMeals);
         setSelections([]); // Clear selections when menu changes
     };
@@ -369,7 +367,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             introductions, addIntroduction,
             teams, setTeams: updateTeams, moveParticipantToTeam,
             scores, updateScore,
-            restaurantName, meals, fetchMenu, addMeal, updateMeal, deleteMeal, 
+            restaurantInfo, meals, fetchMenu, addMeal, updateMeal, deleteMeal, 
             selections, addSelection,
             feedback, addFeedback, toggleFeedbackAddressed,
             networkingInterests, networkingMatches, addNetworkingInterest,

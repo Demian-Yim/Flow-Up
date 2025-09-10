@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { NetworkingInterest, NetworkingMatch, YouTubePlaylist, Feedback, FeedbackCategory, Meal } from '../types';
+import { NetworkingInterest, NetworkingMatch, YouTubePlaylist, Feedback, FeedbackCategory, Meal, RestaurantInfo } from '../types';
 
 // API 키 존재 여부를 먼저 확인
 const API_KEY = process.env.API_KEY;
@@ -121,7 +121,7 @@ export async function generateMotivation(topic: string): Promise<string> {
         return "가장 큰 위험은 아무런 위험도 감수하지 않는 것이다. - 마크 주커버그";
     }
     try {
-        const prompt = `워크숍 참가자들에게 동기부여가 될 만한 짧은 명언을 하나 만들어줘. 주제는 '${topic}'이야. 긍정적이고 힘이 되는 메시지로 작성해줘.`;
+        const prompt = `워크숍 참가자들에게 동기부여가 될 만한 명언을 하나 만들어줘. 주제는 '${topic}'이야. 너무 추상적이거나 뻔한 말이 아닌, 현실적인 상황에 적용할 수 있는 구체적이고 힘이 되는 조언으로 작성해줘.`;
 
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
@@ -164,7 +164,7 @@ export async function generateNetworkingMatches(interests: NetworkingInterest[])
     
     try {
         const participantData = interests.map(p => ({ id: p.participantId, name: p.name, interests: p.interests }));
-        const prompt = `워크숍 참가자들의 네트워킹을 도와주는 AI입니다. 아래 참가자 목록과 각자의 관심사를 기반으로, 각 참가자별로 대화하기 좋은 상대를 최대 3명까지 추천해주세요. 각 추천마다 연결 이유와 자연스러운 대화 시작 질문을 함께 제공해야 합니다. 자기 자신을 추천해서는 안 됩니다.
+        const prompt = `워크숍 참가자들의 네트워킹을 도와주는 AI입니다. 아래 참가자 목록과 각자의 관심사를 기반으로, 각 참가자별로 대화하기 좋은 상대를 최대 3명까지 자동으로 추천해주세요. 각 추천마다 연결 이유와 자연스러운 대화 시작 질문을 함께 제공해야 합니다. 자기 자신을 추천해서는 안 됩니다.
 
 참가자 목록:
 ${JSON.stringify(participantData)}
@@ -231,7 +231,7 @@ ${JSON.stringify(participantData)}
  */
 export async function generateYouTubePlaylists(mood: string): Promise<YouTubePlaylist[]> {
     const fallbackPlaylist: YouTubePlaylist[] = [
-        { title: "[Playlist] 로맨틱한 재즈 선율과 함께하는 달콤한 휴식", description: "감미로운 재즈 음악으로 마음의 안정을 찾아보세요.", videoId: "dQw4w9WgXcQ", thumbnailUrl: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg" },
+        { title: "[Playlist] 로맨틱한 재즈 선율과 함께하는 달콤한 휴식", description: "감미로운 재즈 음악으로 마음의 안정을 찾아보세요.", videoId: "m_h_RY1iKzI", thumbnailUrl: "https://i.ytimg.com/vi/m_h_RY1iKzI/hqdefault.jpg" },
         { title: "일할 때 듣기 좋은 Lo-fi hip hop", description: "집중력을 높여주는 편안한 로파이 음악 컬렉션입니다.", videoId: "5qap5aO4i9A", thumbnailUrl: "https://i.ytimg.com/vi/5qap5aO4i9A/hqdefault.jpg" },
         { title: "신나는 K-Pop 아이돌 음악", description: "에너지가 필요할 때! 기분을 UP 시켜주는 K-Pop 히트곡 모음.", videoId: "3tmd-ClpJxA", thumbnailUrl: "https://i.ytimg.com/vi/3tmd-ClpJxA/hqdefault.jpg" },
         { title: "영화처럼, 감동적인 영화음악 OST", description: "영화의 감동을 다시 한번! 웅장하고 아름다운 OST.", videoId: "s3_e8L_Jq_c", thumbnailUrl: "https://i.ytimg.com/vi/s3_e8L_Jq_c/hqdefault.jpg" },
@@ -245,12 +245,12 @@ export async function generateYouTubePlaylists(mood: string): Promise<YouTubePla
     }
 
     try {
-        const prompt = `당신은 워크숍 분위기를 위한 음악 큐레이터입니다. '${mood}' 분위기에 어울리는 유튜브 플레이리스트나 음악 영상 6개를 추천해주세요. 다양한 장르(가요, 팝, 재즈, 사운드트랙, 인스트루멘탈 등)를 포함해주세요.
+        const prompt = `당신은 워크숍 분위기를 위한 음악 큐레이터입니다. '${mood}' 분위기에 어울리는 유튜브 플레이리스트나 음악 영상 6개를 추천해주세요. 다양한 장르(가요, 팝, 재즈, 사운드트랙, 인스트루멘탈 등)를 포함해주세요. 각 추천 항목은 실제 음악을 감상할 수 있고, 저작권 문제가 없는 유효한 유튜브 영상이어야 합니다.
 
 각 추천 항목은 아래 JSON 스키마를 따르는 객체여야 합니다.
 - title: 영상 또는 플레이리스트의 제목
 - description: 추천 이유나 영상에 대한 간략한 설명 (50자 내외)
-- videoId: 실제 존재할 법한 유튜브 영상 ID (예: 'dQw4w9WgXcQ' 형식의 11자리 영문/숫자 조합)
+- videoId: 실제 존재하는 유효한 유튜브 영상 ID (예: '5qap5aO4i9A' 형식의 11자리 영문/숫자 조합)
 - thumbnailUrl: 'https://i.ytimg.com/vi/[videoId]/hqdefault.jpg' 형식의 썸네일 URL. [videoId] 부분은 생성한 videoId로 대체해주세요.
 
 결과는 6개의 객체를 포함하는 JSON 배열 형태로만 반환해주세요.`;
@@ -428,23 +428,31 @@ export async function generateMealReaction(mealName: string): Promise<string> {
 /**
  * Generates a list of menu items for a given restaurant using the Gemini API.
  * @param restaurantQuery - The name and location of the restaurant.
- * @returns A promise that resolves to an array of Meal objects.
+ * @returns A promise that resolves to an object containing restaurant info and menu items.
  */
-export async function generateMenuItems(restaurantQuery: string): Promise<Omit<Meal, 'id' | 'stock'>[]> {
-    const fallbackMenu = [
-        { name: '시래기국 (예시)', description: '고소한 들깨가루가 일품인 대표 메뉴', price: 9000, image: 'https://images.unsplash.com/photo-1544026312-34a5a5b2bf5e?auto=format&fit=crop&w=800&q=60', isRecommended: true },
-        { name: '도마수육 정식 (예시)', description: '명이나물과 함께 즐기는 야들야들한 수육', price: 14000, image: 'https://images.unsplash.com/photo-1606525433842-61674415e18f?auto=format&fit=crop&w=800&q=60', isRecommended: true },
-    ];
+export async function generateMenuItems(restaurantQuery: string): Promise<{ restaurantInfo: RestaurantInfo, menus: Omit<Meal, 'id' | 'stock'>[] }> {
+    const fallbackData = {
+        restaurantInfo: {
+            name: restaurantQuery,
+            address: "주소 정보 (예시)",
+            mapUrl: "https://map.naver.com/"
+        },
+        menus: [
+            { name: '시래기국', description: '고소한 들깨가루가 일품인 대표 메뉴', price: 9000, emoji: '🍲', isRecommended: true },
+            { name: '도마수육 정식', description: '명이나물과 함께 즐기는 야들야들한 수육', price: 14000, emoji: '🍖', isRecommended: true },
+        ]
+    };
     if (!ai) {
         console.warn("Gemini API key not found. Returning mock data for menu items.");
-        return fallbackMenu;
+        return fallbackData;
     }
     
     try {
-        const prompt = `당신은 대한민국 맛집 메뉴판 전문가입니다. '${restaurantQuery}' 식당의 네이버 지도 정보를 기반으로, 대표 메뉴 5-7개를 찾아 아래 JSON 스키마에 맞춰 응답해주세요.
+        const prompt = `당신은 대한민국 맛집 메뉴판 전문가입니다. '${restaurantQuery}' 식당의 네이버 지도 정보를 기반으로, 대표 메뉴 5-7개와 식당 정보를 찾아 아래 JSON 스키마에 맞춰 응답해주세요.
 - 각 메뉴에 대한 설명은 매력적으로 작성해주세요.
+- 메뉴별로 가장 어울리는 이모지(emoji)를 하나씩 포함해주세요.
 - 가격은 숫자만 포함해야 합니다.
-- 각 메뉴에 어울리는, 저작권 문제가 없는 사실적인 음식 사진 URL도 함께 제공해주세요.`;
+- 식당의 정확한 주소와 네이버 지도 URL을 찾아주세요.`;
 
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
@@ -454,6 +462,15 @@ export async function generateMenuItems(restaurantQuery: string): Promise<Omit<M
                 responseSchema: {
                     type: Type.OBJECT,
                     properties: {
+                        restaurantInfo: {
+                            type: Type.OBJECT,
+                            properties: {
+                                name: { type: Type.STRING, description: "식당 이름" },
+                                address: { type: Type.STRING, description: "식당 주소" },
+                                mapUrl: { type: Type.STRING, description: "네이버 지도 URL" }
+                            },
+                             required: ["name", "address", "mapUrl"]
+                        },
                         menus: {
                             type: Type.ARRAY,
                             description: "식당 메뉴 목록",
@@ -463,24 +480,24 @@ export async function generateMenuItems(restaurantQuery: string): Promise<Omit<M
                                     name: { type: Type.STRING, description: "메뉴 이름" },
                                     description: { type: Type.STRING, description: "메뉴 설명" },
                                     price: { type: Type.NUMBER, description: "메뉴 가격 (숫자)" },
-                                    image: { type: Type.STRING, description: "메뉴 이미지 URL" },
+                                    emoji: { type: Type.STRING, description: "메뉴에 어울리는 이모지" },
                                     isRecommended: { type: Type.BOOLEAN, description: "추천 메뉴 여부 (선택 사항)" },
                                 },
-                                required: ["name", "description", "price", "image"]
+                                required: ["name", "description", "price", "emoji"]
                             }
                         }
                     },
-                    required: ["menus"]
+                    required: ["restaurantInfo", "menus"]
                 }
             }
         });
         
         const jsonText = response.text.trim();
         const parsed = JSON.parse(jsonText);
-        return Array.isArray(parsed.menus) ? parsed.menus : fallbackMenu;
+        return parsed;
 
     } catch (error) {
         console.error("Error generating menu items:", error);
-        return fallbackMenu;
+        return fallbackData;
     }
 }

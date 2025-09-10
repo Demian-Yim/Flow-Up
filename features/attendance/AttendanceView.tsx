@@ -1,11 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, CheckCircle, UserPlus, RefreshCw, AlertTriangle, X } from 'lucide-react';
+import { Camera, CheckCircle, UserPlus, RefreshCw, AlertTriangle, X, Upload } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { useParticipantId } from '../../hooks/useParticipantId';
 import { Role } from '../../types';
 import confetti from 'canvas-confetti';
 import { generateWelcomeMessage } from '../../services/geminiService';
 import Spinner from '../../components/Spinner';
+
+const Clock: React.FC = () => {
+    const [time, setTime] = useState(new Date());
+
+    useEffect(() => {
+        const timerId = setInterval(() => setTime(new Date()), 1000);
+        return () => clearInterval(timerId);
+    }, []);
+
+    return <div className="text-sm text-slate-400 font-mono">{time.toLocaleTimeString('ko-KR')}</div>;
+};
 
 const AttendanceView: React.FC = () => {
     const { role, participants, addParticipant, removeParticipant } = useAppContext();
@@ -19,6 +30,7 @@ const AttendanceView: React.FC = () => {
     const [isLoadingMessage, setIsLoadingMessage] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const alreadyCheckedIn = participants.find(p => p.id === participantId);
 
@@ -90,6 +102,22 @@ const AttendanceView: React.FC = () => {
             setIsCameraReady(false);
         }
     };
+
+    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                setImage(e.target?.result as string);
+                if (videoRef.current && videoRef.current.srcObject) {
+                    const stream = videoRef.current.srcObject as MediaStream;
+                    stream.getTracks().forEach(track => track.stop());
+                    setIsCameraReady(false);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    };
     
     const handleCheckIn = () => {
         if (!name.trim()) {
@@ -97,7 +125,7 @@ const AttendanceView: React.FC = () => {
             return;
         }
         if (!image) {
-            setError('사진을 찍어주세요.');
+            setError('사진을 찍거나 업로드해주세요.');
             return;
         }
         setError('');
@@ -132,7 +160,10 @@ const AttendanceView: React.FC = () => {
         
         return (
             <div className="max-w-md mx-auto bg-slate-800 p-6 rounded-2xl">
-                <h2 className="text-2xl font-bold mb-4 text-center">오늘의 체크인 🚀</h2>
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl font-bold">오늘의 체크인 🚀</h2>
+                    <Clock />
+                </div>
                 <div className="space-y-4">
                     <input 
                         type="text" 
@@ -143,7 +174,7 @@ const AttendanceView: React.FC = () => {
                     />
                     <div className="w-full aspect-video bg-slate-700 border-2 border-dashed border-slate-600 rounded-lg flex items-center justify-center overflow-hidden">
                         {image ? (
-                            <img src={image} alt="촬영된 사진" className="w-full h-full object-cover" />
+                            <img src={image} alt="선택된 이미지" className="w-full h-full object-cover" />
                         ) : error ? (
                              <div className="text-center text-amber-400 p-4">
                                 <AlertTriangle className="w-12 h-12 mx-auto mb-2" />
@@ -167,14 +198,24 @@ const AttendanceView: React.FC = () => {
                     )}
 
                     {!image ? (
-                        <button 
-                            onClick={handleTakePhoto}
-                            disabled={!isCameraReady}
-                            className="w-full flex items-center justify-center gap-2 bg-slate-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-slate-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <Camera />
-                            <span>사진 찍기</span>
-                        </button>
+                        <div className="grid grid-cols-2 gap-4">
+                            <button 
+                                onClick={handleTakePhoto}
+                                disabled={!isCameraReady}
+                                className="w-full flex items-center justify-center gap-2 bg-slate-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-slate-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Camera />
+                                <span>사진 찍기</span>
+                            </button>
+                            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                            <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-full flex items-center justify-center gap-2 bg-slate-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-slate-500 transition-colors"
+                            >
+                                <Upload />
+                                <span>앨범 선택</span>
+                            </button>
+                        </div>
                     ) : (
                          <button 
                             onClick={handleCheckIn} 

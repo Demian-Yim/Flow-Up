@@ -13,7 +13,7 @@ export interface Tool {
 }
 
 export interface Participant {
-    id: string;
+    id:string;
     name: string;
     checkInTime?: string;
     checkInImage?: string;
@@ -25,6 +25,7 @@ export interface Introduction {
     name: string;
     style: '전문가' | '친근한' | '유머러스';
     text: string;
+    emoji?: string;
 }
 
 export interface Team {
@@ -56,9 +57,15 @@ export interface Meal {
     name: string;
     description: string;
     price: number;
-    image: string;
+    emoji: string;
     stock: number;
     isRecommended?: boolean;
+}
+
+export interface RestaurantInfo {
+    name: string;
+    address: string;
+    mapUrl: string;
 }
 
 export interface MealSelection {

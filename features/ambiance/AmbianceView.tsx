@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Music, BrainCircuit, Coffee, Zap, Activity } from 'lucide-react';
+import { Music, BrainCircuit, Coffee, Zap, Activity, Copy } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
-import { AmbianceMood } from '../../types';
+import { AmbianceMood, YouTubePlaylist } from '../../types';
 import Spinner from '../../components/Spinner';
 
 const AmbianceView: React.FC = () => {
     const { role, ambiancePlaylist, generateAmbiancePlaylist } = useAppContext();
     const [isLoading, setIsLoading] = useState(false);
+    const [copiedLink, setCopiedLink] = useState<string | null>(null);
 
     const moodConfig = {
         Focus: { text: '집중 集中', icon: Activity, color: 'border-blue-500', gradient: 'from-blue-500 to-cyan-400' },
@@ -20,25 +21,47 @@ const AmbianceView: React.FC = () => {
         await generateAmbiancePlaylist(mood);
         setIsLoading(false);
     };
+    
+    const handleCopyLink = (videoId: string) => {
+        const link = `https://www.youtube.com/watch?v=${videoId}`;
+        navigator.clipboard.writeText(link).then(() => {
+            setCopiedLink(videoId);
+            setTimeout(() => setCopiedLink(null), 2000); // Reset after 2 seconds
+        });
+    };
+
+    const PlaylistCard: React.FC<{ playlist: YouTubePlaylist, index: number }> = ({ playlist, index }) => (
+         <div 
+            className="bg-slate-800 rounded-lg overflow-hidden group transform hover:-translate-y-2 transition-transform duration-300 shadow-lg hover:shadow-brand-purple/50 flex flex-col"
+        >
+            <a 
+                href={`https://www.youtube.com/watch?v=${playlist.videoId}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="block"
+            >
+                <img src={playlist.thumbnailUrl} alt={playlist.title} className="w-full h-40 object-cover" />
+            </a>
+            <div className="p-4 flex flex-col flex-grow">
+                <h4 className="font-bold text-white truncate group-hover:text-brand-amber flex-grow">{playlist.title}</h4>
+                <p className="text-sm text-slate-400 mt-1 h-10 overflow-hidden">{playlist.description}</p>
+                <button 
+                    onClick={() => handleCopyLink(playlist.videoId)}
+                    className="mt-2 w-full flex items-center justify-center gap-2 text-sm py-1.5 px-3 rounded-md bg-slate-700 hover:bg-brand-indigo transition-colors"
+                >
+                    <Copy size={14} />
+                    <span>{copiedLink === playlist.videoId ? '복사 완료!' : '링크 복사'}</span>
+                </button>
+            </div>
+        </div>
+    );
 
     const PlaylistGallery = () => (
         <div className="mt-6">
             {ambiancePlaylist && (
                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 fade-in">
                     {ambiancePlaylist.playlists.map((playlist, index) => (
-                        <a 
-                            key={index} 
-                            href={`https://www.youtube.com/watch?v=${playlist.videoId}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="bg-slate-800 rounded-lg overflow-hidden group transform hover:-translate-y-2 transition-transform duration-300 shadow-lg hover:shadow-brand-purple/50"
-                        >
-                            <img src={playlist.thumbnailUrl} alt={playlist.title} className="w-full h-40 object-cover" />
-                            <div className="p-4">
-                                <h4 className="font-bold text-white truncate group-hover:text-brand-amber">{playlist.title}</h4>
-                                <p className="text-sm text-slate-400 mt-1 h-10 overflow-hidden">{playlist.description}</p>
-                            </div>
-                        </a>
+                       <PlaylistCard key={index} playlist={playlist} index={index} />
                     ))}
                 </div>
             )}
