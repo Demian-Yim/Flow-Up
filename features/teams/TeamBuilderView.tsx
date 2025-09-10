@@ -21,6 +21,7 @@ const TeamBuilderView: React.FC = () => {
         const shuffled = [...participants].sort(() => 0.5 - Math.random());
         const numTeams = Math.ceil(shuffled.length / teamSize);
         const newTeams: Team[] = Array.from({ length: numTeams }, (_, i) => ({
+            id: `team_${Date.now()}_${i}`,
             name: `팀 ${i + 1}`,
             members: shuffled.slice(i * teamSize, (i + 1) * teamSize),
         }));
@@ -122,7 +123,7 @@ const TeamBuilderView: React.FC = () => {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {teams.map((team, index) => (
-                    <div key={index} className="bg-slate-800 p-4 rounded-xl space-y-3">
+                    <div key={team.id} className="bg-slate-800 p-4 rounded-xl space-y-3">
                          <div className="flex justify-between items-center">
                             <input 
                                 type="text"

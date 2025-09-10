@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Dashboard from './features/Dashboard';
 import AttendanceView from './features/attendance/AttendanceView';
 import IntroductionsView from './features/introductions/IntroductionsView';
@@ -13,11 +13,23 @@ import { TOOLS } from './constants';
 import { Tool, Role } from './types';
 import Header from './components/Header';
 import { useAppContext } from './context/AppContext';
+import { useParticipantId } from './hooks/useParticipantId';
 
 
 const App: React.FC = () => {
     const [activeTool, setActiveTool] = useState<Tool | null>(null);
-    const { role, setRole } = useAppContext();
+    const { role, setRole, participants, currentUser, setCurrentUser } = useAppContext();
+    const participantId = useParticipantId();
+
+    useEffect(() => {
+        if (role === Role.Participant && !currentUser && participantId && participants.length > 0) {
+            const user = participants.find(p => p.id === participantId);
+            if (user) {
+                setCurrentUser(user);
+            }
+        }
+    }, [role, participants, currentUser, participantId, setCurrentUser]);
+
 
     const renderActiveTool = () => {
         if (!activeTool) return <Dashboard onSelectTool={setActiveTool} />;

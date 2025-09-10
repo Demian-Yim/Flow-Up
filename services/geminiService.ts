@@ -1,4 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
+import { NetworkingInterest, NetworkingMatch, Song } from '../types';
 
 // API 키 존재 여부를 먼저 확인
 const API_KEY = process.env.API_KEY;
@@ -131,5 +132,149 @@ export async function generateMotivation(topic: string): Promise<string> {
     } catch (error) {
         console.error("Error generating motivation:", error);
         return "가장 큰 위험은 아무런 위험도 감수하지 않는 것이다. - 마크 주커버그";
+    }
+}
+
+/**
+ * Generates networking matches for participants based on their interests.
+ * @param interests - An array of participant interests.
+ * @returns A promise that resolves to a record of matches for each participant.
+ */
+export async function generateNetworkingMatches(interests: NetworkingInterest[]): Promise<Record<string, NetworkingMatch[]>> {
+    if (!ai) {
+        console.warn("Gemini API key not found. Returning mock data for networking.");
+        if (interests.length < 2) return {};
+        const p1 = interests[0];
+        const p2 = interests[1];
+        return {
+            [p1.participantId]: [{
+                matchedParticipantId: p2.participantId,
+                matchedParticipantName: p2.name,
+                commonInterests: "관심사가 비슷해 보여요!",
+                conversationStarter: `${p2.name}님과 ${p1.interests}에 대해 이야기해보는 건 어떠세요?`
+            }],
+            [p2.participantId]: [{
+                matchedParticipantId: p1.participantId,
+                matchedParticipantName: p1.name,
+                commonInterests: "흥미로운 대화를 나눌 수 있을 거예요.",
+                conversationStarter: `${p1.name}님과 ${p2.interests}에 대해 이야기 나눠보세요!`
+            }]
+        };
+    }
+    
+    try {
+        const participantData = interests.map(p => ({ id: p.participantId, name: p.name, interests: p.interests }));
+        const prompt = `워크숍 참가자들의 네트워킹을 도와주는 AI입니다. 아래 참가자 목록과 각자의 관심사를 기반으로, 각 참가자별로 대화하기 좋은 상대를 최대 3명까지 추천해주세요. 각 추천마다 연결 이유와 자연스러운 대화 시작 질문을 함께 제공해야 합니다. 자기 자신을 추천해서는 안 됩니다.
+
+참가자 목록:
+${JSON.stringify(participantData)}
+
+결과는 아래 JSON 스키마를 따르는 JSON 배열 형태로 반환해주세요. 각 객체는 한 참가자의 추천 목록을 담고 있어야 합니다.
+`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    description: "각 참가자에 대한 추천 매칭 목록입니다.",
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            participantId: {
+                                type: Type.STRING,
+                                description: "추천을 받는 참가자의 ID"
+                            },
+                            matches: {
+                                type: Type.ARRAY,
+                                description: "해당 참가자에게 추천되는 상대방 목록",
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        matchedParticipantId: { type: Type.STRING, description: "추천된 상대방의 ID" },
+                                        matchedParticipantName: { type: Type.STRING, description: "추천된 상대방의 이름" },
+                                        commonInterests: { type: Type.STRING, description: "두 사람을 연결하는 공통 관심사 또는 이유" },
+                                        conversationStarter: { type: Type.STRING, description: "대화를 시작할 수 있는 자연스러운 질문" }
+                                    },
+                                    required: ["matchedParticipantId", "matchedParticipantName", "commonInterests", "conversationStarter"]
+                                }
+                            }
+                        },
+                        required: ["participantId", "matches"]
+                    }
+                }
+            }
+        });
+
+        const jsonText = response.text.trim();
+        const resultArray: { participantId: string; matches: NetworkingMatch[] }[] = JSON.parse(jsonText);
+
+        const matchesRecord: Record<string, NetworkingMatch[]> = {};
+        for (const item of resultArray) {
+            matchesRecord[item.participantId] = item.matches;
+        }
+        return matchesRecord;
+
+    } catch (error) {
+        console.error("Error generating networking matches:", error);
+        return {};
+    }
+}
+
+
+/**
+ * Generates a playlist based on a mood using the Gemini API.
+ * @param mood - The mood or theme for the playlist.
+ * @returns A promise that resolves to an array of Song objects.
+ */
+export async function generatePlaylist(mood: string): Promise<Song[]> {
+    if (!ai) {
+        console.warn("Gemini API key not found. Returning mock data for playlist.");
+        return [
+            { title: "Mockingbird", artist: "Eminem" },
+            { title: "Coffee", artist: "Beabadoobee" },
+            { title: "Sunday Morning", artist: "Maroon 5" },
+            { title: "Good Days", artist: "SZA" },
+            { title: "Daylight", artist: "David Kushner" },
+        ];
+    }
+    try {
+        const prompt = `'${mood}' 테마에 어울리는 노래 5곡을 추천해줘. 각 노래는 제목과 아티스트를 포함해야 해.`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        playlist: {
+                            type: Type.ARRAY,
+                            description: "추천된 노래 목록",
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    title: { type: Type.STRING, description: "노래 제목" },
+                                    artist: { type: Type.STRING, description: "아티스트 이름" },
+                                },
+                                required: ["title", "artist"],
+                            },
+                        },
+                    },
+                    required: ["playlist"],
+                },
+            },
+        });
+        
+        const jsonText = response.text.trim();
+        const parsed = JSON.parse(jsonText);
+        return Array.isArray(parsed.playlist) ? parsed.playlist : [];
+
+    } catch (error) {
+        console.error("Error generating playlist:", error);
+        return [{ title: "플레이리스트 생성 실패", artist: "오류가 발생했습니다." }];
     }
 }
