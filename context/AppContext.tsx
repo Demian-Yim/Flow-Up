@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { Participant, Role, Introduction, Team, Meal, MealSelection, Feedback, NetworkingInterest, NetworkingMatch, AmbiancePlaylist, AmbianceMood, TeamScore, WorkshopSummary } from '../types';
-import { MEALS } from '../constants';
+import { INITIAL_MEALS } from '../constants';
 import { generateNetworkingMatches, generatePlaylist, generateWorkshopSummaries } from '../services/geminiService';
 
 interface AppContextType {
@@ -15,9 +15,13 @@ interface AppContextType {
     addIntroduction: (introduction: Introduction) => void;
     teams: Team[];
     setTeams: (teams: Team[]) => void;
+    moveParticipantToTeam: (participantId: string, newTeamId: string) => void;
     scores: TeamScore[];
     updateScore: (teamId: string, delta: number) => void;
     meals: Meal[];
+    addMeal: (meal: Omit<Meal, 'id'>) => void;
+    updateMeal: (meal: Meal) => void;
+    deleteMeal: (mealId: number) => void;
     selections: MealSelection[];
     addSelection: (selection: MealSelection) => void;
     feedback: Feedback[];
@@ -45,7 +49,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const [introductions, setIntroductions] = useState<Introduction[]>([]);
     const [teams, setTeams] = useState<Team[]>([]);
     const [scores, setScores] = useState<TeamScore[]>([]);
-    const [meals, setMeals] = useState<Meal[]>(MEALS);
+    const [meals, setMeals] = useState<Meal[]>(INITIAL_MEALS);
     const [selections, setSelections] = useState<MealSelection[]>([]);
     const [feedback, setFeedback] = useState<Feedback[]>([]);
     const [networkingInterests, setNetworkingInterests] = useState<NetworkingInterest[]>([]);
@@ -67,6 +71,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                     setIntroductions(savedState.introductions || []);
                     setTeams(savedState.teams || []);
                     setScores(savedState.scores || []);
+                    setMeals(savedState.meals || INITIAL_MEALS);
                     setSelections(savedState.selections || []);
                     setFeedback(savedState.feedback || []);
                     setNetworkingInterests(savedState.networkingInterests || []);
@@ -88,6 +93,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 introductions,
                 teams,
                 scores,
+                meals,
                 selections,
                 feedback,
                 networkingInterests,
@@ -99,7 +105,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         } catch (error) {
             console.error("Failed to save state to local storage", error);
         }
-    }, [role, participants, introductions, teams, scores, selections, feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated]);
+    }, [role, participants, introductions, teams, scores, meals, selections, feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated]);
 
     const addParticipant = (participant: Participant) => {
         setParticipants(prev => {
@@ -167,6 +173,38 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             return updatedScores;
         });
     };
+    
+    const moveParticipantToTeam = (participantId: string, newTeamId: string) => {
+        let participantToMove: Participant | undefined;
+        
+        // Find and remove participant from the old team
+        const teamsWithoutParticipant = teams.map(team => {
+            const memberIndex = team.members.findIndex(m => m.id === participantId);
+            if (memberIndex > -1) {
+                participantToMove = team.members[memberIndex];
+                return {
+                    ...team,
+                    members: team.members.filter(m => m.id !== participantId),
+                };
+            }
+            return team;
+        });
+
+        if (!participantToMove) return;
+
+        // Add participant to the new team
+        const newTeams = teamsWithoutParticipant.map(team => {
+            if (team.id === newTeamId) {
+                return {
+                    ...team,
+                    members: [...team.members, participantToMove!].sort((a,b) => a.name.localeCompare(b.name)),
+                };
+            }
+            return team;
+        });
+
+        updateTeams(newTeams.filter(team => team.members.length > 0));
+    };
 
     const updateScore = (teamId: string, delta: number) => {
         setScores(prevScores => {
@@ -177,6 +215,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             return newScores;
         });
     };
+
+    // Meal management
+    const addMeal = (meal: Omit<Meal, 'id'>) => {
+        const newMeal: Meal = { ...meal, id: Date.now() };
+        setMeals(prev => [...prev, newMeal]);
+    };
+
+    const updateMeal = (updatedMeal: Meal) => {
+        setMeals(prev => prev.map(meal => meal.id === updatedMeal.id ? updatedMeal : meal));
+    };
+
+    const deleteMeal = (mealId: number) => {
+        setMeals(prev => prev.filter(meal => meal.id !== mealId));
+    };
+
 
     const addSelection = (selection: MealSelection) => {
         setSelections(prev => {
@@ -254,9 +307,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             participants, addParticipant, removeParticipant,
             currentUser, setCurrentUser,
             introductions, addIntroduction,
-            teams, setTeams: updateTeams,
+            teams, setTeams: updateTeams, moveParticipantToTeam,
             scores, updateScore,
-            meals, selections, addSelection,
+            meals, addMeal, updateMeal, deleteMeal, 
+            selections, addSelection,
             feedback, addFeedback, toggleFeedbackAddressed,
             networkingInterests, networkingMatches, addNetworkingInterest,
             ambiancePlaylist, generateAmbiancePlaylist,

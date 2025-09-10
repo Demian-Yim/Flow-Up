@@ -13,8 +13,10 @@ import WrapUpView from './features/wrapup/WrapUpView';
 import { TOOLS } from './constants';
 import { Tool, Role } from './types';
 import Header from './components/Header';
+import ParticipantNav from './components/ParticipantNav';
 import { useAppContext } from './context/AppContext';
 import { useParticipantId } from './hooks/useParticipantId';
+import Footer from './components/Footer';
 
 
 const App: React.FC = () => {
@@ -31,6 +33,19 @@ const App: React.FC = () => {
         }
     }, [role, participants, currentUser, participantId, setCurrentUser]);
 
+    const activeToolIndex = activeTool ? TOOLS.findIndex(t => t.id === activeTool.id) : -1;
+
+    const handleNav = (direction: 'next' | 'prev' | 'home') => {
+        if (direction === 'home') {
+            setActiveTool(null);
+            return;
+        }
+
+        const newIndex = direction === 'next' ? activeToolIndex + 1 : activeToolIndex - 1;
+        if (newIndex >= 0 && newIndex < TOOLS.length) {
+            setActiveTool(TOOLS[newIndex]);
+        }
+    };
 
     const renderActiveTool = () => {
         if (!activeTool) return <Dashboard onSelectTool={setActiveTool} />;
@@ -51,7 +66,7 @@ const App: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-900 text-white">
+        <div className="min-h-screen bg-slate-900 text-white pb-32">
             <Header
                 title={activeTool ? activeTool.title : 'Flow~ Up (플로우~ 업)'}
                 showBackButton={!!activeTool}
@@ -60,6 +75,14 @@ const App: React.FC = () => {
             <main className="p-4 sm:p-6 lg:p-8">
                 {renderActiveTool()}
             </main>
+            {role === Role.Participant && activeTool && (
+                <ParticipantNav
+                    onNav={handleNav}
+                    currentIndex={activeToolIndex}
+                    totalTools={TOOLS.length}
+                />
+            )}
+            <Footer />
         </div>
     );
 };

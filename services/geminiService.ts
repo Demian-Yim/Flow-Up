@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { NetworkingInterest, NetworkingMatch, Song, Feedback } from '../types';
+import { NetworkingInterest, NetworkingMatch, Song, Feedback, FeedbackCategory } from '../types';
 
 // API 키 존재 여부를 먼저 확인
 const API_KEY = process.env.API_KEY;
@@ -330,5 +330,82 @@ export async function generateWorkshopSummaries(feedback: Feedback[], interests:
     } catch (error) {
         console.error("Error generating workshop summaries:", error);
         return fallbackSummary;
+    }
+}
+
+
+/**
+ * Generates a personalized welcome message for a participant.
+ * @param name - The participant's name.
+ * @returns A promise that resolves to a welcome message.
+ */
+export async function generateWelcomeMessage(name: string): Promise<string> {
+    const fallback = `${name}님, 환영합니다! 오늘 워크숍에서 멋진 시간을 보내세요!`;
+    if (!ai) return fallback;
+
+    try {
+        const prompt = `워크숍에 방금 체크인한 '${name}' 님을 위한, 짧고 창의적이며 에너지가 넘치는 환영 메시지를 한 문장으로 생성해줘.`;
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+        });
+        return response.text.trim().replace(/"/g, '');
+    } catch (error) {
+        console.error("Error generating welcome message:", error);
+        return fallback;
+    }
+}
+
+/**
+ * Generates a dynamic reply to submitted feedback.
+ * @param category - The category of the feedback.
+ * @returns A promise that resolves to a reply message.
+ */
+export async function generateFeedbackReply(category: FeedbackCategory): Promise<string> {
+    const fallbacks = {
+        Question: "좋은 질문 감사합니다! 담당자가 확인 후 답변 드릴 예정입니다.",
+        Suggestion: "소중한 제안 감사합니다. 워크숍 개선에 큰 도움이 될 거예요!",
+        Praise: "따뜻한 칭찬 감사합니다! 덕분에 힘이 나네요!",
+    };
+    if (!ai) return fallbacks[category];
+
+    try {
+        const topic = {
+            Question: "질문",
+            Suggestion: "제안",
+            Praise: "칭찬",
+        }[category];
+
+        const prompt = `워크숍 참가자가 방금 '${topic}' 종류의 피드백을 제출했습니다. 제출 완료 화면에 보여줄, 짧고 긍정적이며 재치있는 확인 메시지를 한 문장으로 생성해줘.`;
+         const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+        });
+        return response.text.trim().replace(/"/g, '');
+    } catch (error) {
+        console.error("Error generating feedback reply:", error);
+        return fallbacks[category];
+    }
+}
+
+/**
+ * Generates a fun reaction to a meal selection.
+ * @param mealName - The name of the selected meal.
+ * @returns A promise that resolves to a reaction message.
+ */
+export async function generateMealReaction(mealName: string): Promise<string> {
+    const fallback = `${mealName}, 탁월한 선택이에요!`;
+    if (!ai) return fallback;
+
+    try {
+        const prompt = `워크숍 참가자가 점심 메뉴로 '${mealName}'을 선택했습니다. 이 선택에 대해, 짧고 재치있으며 긍정적인 반응 메시지를 한 문장으로 생성해줘.`;
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+        });
+        return response.text.trim().replace(/"/g, '');
+    } catch (error) {
+        console.error("Error generating meal reaction:", error);
+        return fallback;
     }
 }

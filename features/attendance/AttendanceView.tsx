@@ -4,6 +4,8 @@ import { useAppContext } from '../../context/AppContext';
 import { useParticipantId } from '../../hooks/useParticipantId';
 import { Role } from '../../types';
 import confetti from 'canvas-confetti';
+import { generateWelcomeMessage } from '../../services/geminiService';
+import Spinner from '../../components/Spinner';
 
 const AttendanceView: React.FC = () => {
     const { role, participants, addParticipant, removeParticipant } = useAppContext();
@@ -13,10 +15,23 @@ const AttendanceView: React.FC = () => {
     const [image, setImage] = useState<string | null>(null);
     const [error, setError] = useState('');
     const [isCameraReady, setIsCameraReady] = useState(false);
+    const [welcomeMessage, setWelcomeMessage] = useState('');
+    const [isLoadingMessage, setIsLoadingMessage] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     const alreadyCheckedIn = participants.find(p => p.id === participantId);
+
+    useEffect(() => {
+        if (alreadyCheckedIn && !welcomeMessage) {
+            setIsLoadingMessage(true);
+            generateWelcomeMessage(alreadyCheckedIn.name).then(msg => {
+                setWelcomeMessage(msg);
+                setIsLoadingMessage(false);
+            });
+        }
+    }, [alreadyCheckedIn, welcomeMessage]);
+
 
     const startCamera = async () => {
         setError('');
@@ -108,8 +123,8 @@ const AttendanceView: React.FC = () => {
             return (
                 <div className="text-center max-w-md mx-auto bg-slate-800 p-8 rounded-2xl">
                     <CheckCircle className="w-16 h-16 text-brand-emerald mx-auto mb-4" />
-                    <h2 className="text-3xl font-bold mb-2">체크인 완료!</h2>
-                    <p className="text-xl text-slate-300">{alreadyCheckedIn.name}님, 환영합니다!</p>
+                    <h2 className="text-3xl font-bold mb-2">{alreadyCheckedIn.name}님, 체크인 완료!</h2>
+                    {isLoadingMessage ? <Spinner /> : <p className="text-xl text-slate-300 italic">"{welcomeMessage}"</p>}
                     {alreadyCheckedIn.checkInImage && <img src={alreadyCheckedIn.checkInImage} alt={alreadyCheckedIn.name} className="w-32 h-32 rounded-full mx-auto mt-6 object-cover border-4 border-brand-purple" />}
                 </div>
             );

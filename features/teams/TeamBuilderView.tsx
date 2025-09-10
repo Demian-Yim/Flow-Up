@@ -7,7 +7,7 @@ import { generateTeamNames } from '../../services/geminiService';
 import Spinner from '../../components/Spinner';
 
 const TeamBuilderView: React.FC = () => {
-    const { role, participants, teams, setTeams, currentUser } = useAppContext();
+    const { role, participants, teams, setTeams, currentUser, moveParticipantToTeam } = useAppContext();
     const [teamSize, setTeamSize] = useState(4);
     const [keywords, setKeywords] = useState('');
     const [suggestedNames, setSuggestedNames] = useState<string[]>([]);
@@ -139,7 +139,18 @@ const TeamBuilderView: React.FC = () => {
                          </div>
                          <ul className="space-y-2">
                              {team.members.map(member => (
-                                 <li key={member.id} className="bg-slate-700 px-3 py-2 rounded-md">{member.name}</li>
+                                 <li key={member.id} className="bg-slate-700 px-3 py-2 rounded-md flex justify-between items-center">
+                                    <span>{member.name}</span>
+                                    <select 
+                                        value={team.id}
+                                        onChange={(e) => moveParticipantToTeam(member.id, e.target.value)}
+                                        className="bg-slate-600 text-xs rounded border border-slate-500 focus:ring-brand-purple focus:border-brand-purple"
+                                    >
+                                        {teams.map(t => (
+                                            <option key={t.id} value={t.id}>{t.name}</option>
+                                        ))}
+                                    </select>
+                                 </li>
                              ))}
                          </ul>
                     </div>

@@ -1,4 +1,3 @@
-
 import {
     CalendarCheck,
     Sparkles,
@@ -27,11 +26,11 @@ export const TOOLS: Tool[] = [
 ];
 
 
-export const MEALS: Meal[] = [
-    { id: 1, name: '프리미엄 한식 도시락', description: '정갈한 반찬과 따뜻한 밥, 그리고 메인 요리', price: 15000, image: 'https://images.unsplash.com/photo-1582576163524-7188d3855a0a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=60', stock: 20, isRecommended: true },
-    { id: 2, name: '클래식 클럽 샌드위치', description: '신선한 채소와 햄, 치즈가 듬뿍 들어간 샌드위치', price: 12000, image: 'https://images.unsplash.com/photo-1592415486689-125c9287573d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=60', stock: 30 },
-    { id: 3, name: '매콤한 낙지덮밥', description: '스트레스를 날려줄 화끈한 매운 맛의 낙지덮밥', price: 13000, image: 'https://images.unsplash.com/photo-1593560708633-2a7f35a43f87?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=60', stock: 15 },
-    { id: 4, name: '든든한 비프 부리또', description: '소고기, 밥, 콩, 채소가 가득 들어간 멕시칸 부리또', price: 11000, image: 'https://images.unsplash.com/photo-1625141041434-6e8284102b4d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=60', stock: 25 },
-    { id: 5, name: '신선한 리코타치즈 샐러드', description: '상큼한 드레싱과 신선한 채소, 고소한 리코타치즈', price: 10000, image: 'https://images.unsplash.com/photo-1551248429-40974011e723?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=60', stock: 10 },
-    { id: 6, name: '품절된 메뉴', description: '이 메뉴는 현재 선택할 수 없습니다.', price: 99999, image: 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=60', stock: 0 },
+export const INITIAL_MEALS: Meal[] = [
+    { id: 1, name: '시래기국', description: '들깨가루로 고소함을 더한 전통 방식의 대표 메뉴', price: 9000, image: 'https://images.unsplash.com/photo-1544026312-34a5a5b2bf5e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=60', stock: 30, isRecommended: true },
+    { id: 2, name: '도마수육 정식', description: '야들야들하게 삶아낸 수육과 명이나물이 함께 제공되는 든든한 정식', price: 14000, image: 'https://images.unsplash.com/photo-1606525433842-61674415e18f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=60', stock: 20, isRecommended: true },
+    { id: 3, name: '쑥떡 떡갈비 정식', description: '향긋한 쑥떡과 육즙 가득한 떡갈비의 환상적인 조화', price: 13000, image: 'https://images.unsplash.com/photo-1599028204639-9d5870295325?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=60', stock: 15 },
+    { id: 4, name: '얼큰 시래기국', description: '스트레스를 날려줄 칼칼하고 시원한 맛의 매운 시래기국', price: 10000, image: 'https://images.unsplash.com/photo-1572695914217-1594d75474a2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=60', stock: 20 },
+    { id: 5, name: '옛날 불고기', description: '달콤짭짤한 양념에 재운 소불고기를 자작하게 끓여먹는 추억의 맛', price: 15000, image: 'https://images.unsplash.com/photo-1628294777977-227844a49901?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=60', stock: 15 },
+    { id: 6, name: '해물파전', description: '오징어와 새우가 듬뿍 들어간 바삭하고 고소한 해물파전', price: 18000, image: 'https://images.unsplash.com/photo-1632770743688-632832964b0f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=60', stock: 10 },
 ];
