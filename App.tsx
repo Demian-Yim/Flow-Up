@@ -19,7 +19,7 @@ import { useParticipantId } from './hooks/useParticipantId';
 
 const App: React.FC = () => {
     const [activeTool, setActiveTool] = useState<Tool | null>(null);
-    const { role, setRole, participants, currentUser, setCurrentUser } = useAppContext();
+    const { role, participants, currentUser, setCurrentUser } = useAppContext();
     const participantId = useParticipantId();
 
     useEffect(() => {
@@ -56,8 +56,6 @@ const App: React.FC = () => {
                 title={activeTool ? activeTool.title : 'Flow~ Up (플로우~ 업)'}
                 showBackButton={!!activeTool}
                 onBack={() => setActiveTool(null)}
-                currentRole={role}
-                onRoleChange={setRole}
             />
             <main className="p-4 sm:p-6 lg:p-8">
                 {renderActiveTool()}

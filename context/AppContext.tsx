@@ -8,6 +8,7 @@ interface AppContextType {
     setRole: (role: Role) => void;
     participants: Participant[];
     addParticipant: (participant: Participant) => void;
+    removeParticipant: (participantId: string) => void;
     currentUser: Participant | null;
     setCurrentUser: (participant: Participant | null) => void;
     introductions: Introduction[];
@@ -29,6 +30,8 @@ interface AppContextType {
     generateAmbiancePlaylist: (mood: AmbianceMood) => Promise<void>;
     workshopSummary: WorkshopSummary | null;
     generateWorkshopSummary: () => Promise<void>;
+    isAdminAuthenticated: boolean;
+    loginAdmin: (password: string) => boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -49,6 +52,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const [networkingMatches, setNetworkingMatches] = useState<Record<string, NetworkingMatch[]>>({});
     const [ambiancePlaylist, setAmbiancePlaylist] = useState<AmbiancePlaylist | null>(null);
     const [workshopSummary, setWorkshopSummary] = useState<WorkshopSummary | null>(null);
+    const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
+    
+    const ADMIN_PASSWORD = 'inamoment';
 
     useEffect(() => {
         try {
@@ -66,6 +72,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                     setNetworkingInterests(savedState.networkingInterests || []);
                     setAmbiancePlaylist(savedState.ambiancePlaylist || null);
                     setWorkshopSummary(savedState.workshopSummary || null);
+                    setIsAdminAuthenticated(savedState.isAdminAuthenticated || false);
                 }
             }
         } catch (error) {
@@ -86,12 +93,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 networkingInterests,
                 ambiancePlaylist,
                 workshopSummary,
+                isAdminAuthenticated,
             };
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
         } catch (error) {
             console.error("Failed to save state to local storage", error);
         }
-    }, [role, participants, introductions, teams, scores, selections, feedback, networkingInterests, ambiancePlaylist, workshopSummary]);
+    }, [role, participants, introductions, teams, scores, selections, feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated]);
 
     const addParticipant = (participant: Participant) => {
         setParticipants(prev => {
@@ -103,6 +111,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if(role === Role.Participant) {
           setCurrentUser(participant);
         }
+    };
+
+    const removeParticipant = (participantId: string) => {
+        if (currentUser && currentUser.id === participantId) {
+            setCurrentUser(null);
+        }
+
+        setParticipants(prev => prev.filter(p => p.id !== participantId));
+        setIntroductions(prev => prev.filter(i => i.participantId !== participantId));
+        setSelections(prev => prev.filter(s => s.participantId !== participantId));
+        setFeedback(prev => prev.filter(f => f.participantId !== participantId));
+        setNetworkingInterests(prev => prev.filter(ni => ni.participantId !== participantId));
+
+        const updatedTeams = teams
+            .map(team => ({
+                ...team,
+                members: team.members.filter(member => member.id !== participantId),
+            }))
+            .filter(team => team.members.length > 0);
+        
+        updateTeams(updatedTeams);
     };
 
     const addIntroduction = (introduction: Introduction) => {
@@ -128,6 +157,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 name: team.name,
                 score: scoresMap.get(team.id) || 0,
             }));
+            
+            const existingScores = new Set(newTeams.map(t => t.id));
+            const oldScores = prevScores.filter(s => !existingScores.has(s.teamId));
+
+            updatedScores = [...updatedScores, ...oldScores.filter(os => !updatedScores.find(us => us.teamId === os.teamId))];
             
             updatedScores.sort((a,b) => b.score - a.score);
             return updatedScores;
@@ -206,10 +240,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         });
     };
 
+    const loginAdmin = (password: string): boolean => {
+        if (password === ADMIN_PASSWORD) {
+            setIsAdminAuthenticated(true);
+            return true;
+        }
+        return false;
+    };
+
     return (
         <AppContext.Provider value={{
             role, setRole,
-            participants, addParticipant,
+            participants, addParticipant, removeParticipant,
             currentUser, setCurrentUser,
             introductions, addIntroduction,
             teams, setTeams: updateTeams,
@@ -219,6 +261,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             networkingInterests, networkingMatches, addNetworkingInterest,
             ambiancePlaylist, generateAmbiancePlaylist,
             workshopSummary, generateWorkshopSummary,
+            isAdminAuthenticated, loginAdmin,
         }}>
             {children}
         </AppContext.Provider>

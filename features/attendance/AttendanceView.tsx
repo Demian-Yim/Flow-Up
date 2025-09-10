@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, CheckCircle, UserPlus, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Camera, CheckCircle, UserPlus, RefreshCw, AlertTriangle, X } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { useParticipantId } from '../../hooks/useParticipantId';
 import { Role } from '../../types';
 import confetti from 'canvas-confetti';
 
 const AttendanceView: React.FC = () => {
-    const { role, participants, addParticipant } = useAppContext();
+    const { role, participants, addParticipant, removeParticipant } = useAppContext();
     const participantId = useParticipantId();
     
     const [name, setName] = useState('');
@@ -97,6 +97,12 @@ const AttendanceView: React.FC = () => {
         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
     };
 
+    const handleRemoveParticipant = (id: string, name: string) => {
+        if (window.confirm(`'${name}' 참가자를 삭제하시겠습니까? 체크인 정보, 자기소개, 팀 소속 등 모든 관련 데이터가 영구적으로 삭제됩니다.`)) {
+            removeParticipant(id);
+        }
+    };
+
     if (role === Role.Participant) {
         if (alreadyCheckedIn) {
             return (
@@ -177,7 +183,14 @@ const AttendanceView: React.FC = () => {
             ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {participants.map(p => (
-                        <div key={p.id} className="text-center bg-slate-700 p-3 rounded-lg">
+                        <div key={p.id} className="relative group text-center bg-slate-700 p-3 rounded-lg">
+                             <button 
+                                onClick={() => handleRemoveParticipant(p.id, p.name)}
+                                className="absolute top-1.5 right-1.5 z-10 p-1 bg-red-600/70 hover:bg-red-600 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                aria-label={`${p.name} 삭제`}
+                            >
+                                <X size={14} />
+                            </button>
                             {p.checkInImage && <img src={p.checkInImage} alt={p.name} className="w-24 h-24 rounded-full mx-auto object-cover border-4 border-slate-600" />}
                             <p className="font-bold mt-2 truncate">{p.name}</p>
                             <p className="text-sm text-slate-400">{p.checkInTime}</p>
