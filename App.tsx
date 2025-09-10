@@ -9,6 +9,7 @@ import FeedbackView from './features/feedback/FeedbackView';
 import NetworkingView from './features/networking/NetworkingView';
 import AmbianceView from './features/ambiance/AmbianceView';
 import MealSelectorView from './features/meals/MealSelectorView';
+import WrapUpView from './features/wrapup/WrapUpView';
 import { TOOLS } from './constants';
 import { Tool, Role } from './types';
 import Header from './components/Header';
@@ -44,6 +45,7 @@ const App: React.FC = () => {
             case 'networking': return <NetworkingView />;
             case 'ambiance': return <AmbianceView />;
             case 'meals': return <MealSelectorView />;
+            case 'wrapup': return <WrapUpView />;
             default: return <Dashboard onSelectTool={setActiveTool} />;
         }
     };

@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { NetworkingInterest, NetworkingMatch, Song } from '../types';
+import { NetworkingInterest, NetworkingMatch, Song, Feedback } from '../types';
 
 // API 키 존재 여부를 먼저 확인
 const API_KEY = process.env.API_KEY;
@@ -276,5 +276,59 @@ export async function generatePlaylist(mood: string): Promise<Song[]> {
     } catch (error) {
         console.error("Error generating playlist:", error);
         return [{ title: "플레이리스트 생성 실패", artist: "오류가 발생했습니다." }];
+    }
+}
+
+/**
+ * Generates summaries for workshop feedback and networking interests.
+ * @param feedback - An array of feedback items.
+ * @param interests - An array of networking interests.
+ * @returns A promise that resolves to an object with summaries.
+ */
+export async function generateWorkshopSummaries(feedback: Feedback[], interests: NetworkingInterest[]): Promise<{ feedbackSummary: string; networkingSummary: string; }> {
+    const fallbackSummary = {
+        feedbackSummary: "워크숍 동안 다양한 질문과 제안, 칭찬이 오갔습니다. 활발한 참여에 감사드립니다!",
+        networkingSummary: "기술, 취미, 커리어 등 다채로운 주제에 대한 관심사가 공유되었습니다. 이를 바탕으로 의미 있는 네트워킹이 이루어졌기를 바랍니다.",
+    };
+
+    if (!ai) {
+        console.warn("Gemini API key not found. Returning mock data for summaries.");
+        return fallbackSummary;
+    }
+    
+    try {
+        const prompt = `워크숍 활동 요약 AI입니다. 아래에 제공된 피드백 목록과 네트워킹 관심사 목록을 분석하여, 각 항목에 대한 긍정적이고 간결한 요약문을 한국어로 생성해주세요.
+
+데이터:
+피드백 목록: ${JSON.stringify(feedback.map(f => ({ category: f.category, message: f.message })))}
+네트워킹 관심사: ${JSON.stringify(interests.map(i => i.interests))}
+
+요약문은 아래 JSON 스키마를 따라 생성해야 합니다.
+- feedbackSummary: 전반적인 피드백의 경향을 요약합니다. 어떤 질문이 많았는지, 주요 제안은 무엇이었는지, 긍정적인 칭찬 내용은 무엇이었는지 등을 포함해주세요.
+- networkingSummary: 참가자들이 주로 어떤 주제에 관심을 보였는지 요약합니다. 가장 많이 언급된 인기 주제나 키워드를 포함해주세요.
+`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        feedbackSummary: { type: Type.STRING, description: "피드백 요약문" },
+                        networkingSummary: { type: Type.STRING, description: "네트워킹 관심사 요약문" },
+                    },
+                    required: ["feedbackSummary", "networkingSummary"],
+                },
+            },
+        });
+        
+        const jsonText = response.text.trim();
+        return JSON.parse(jsonText);
+
+    } catch (error) {
+        console.error("Error generating workshop summaries:", error);
+        return fallbackSummary;
     }
 }

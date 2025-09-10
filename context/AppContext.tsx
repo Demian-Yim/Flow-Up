@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
-import { Participant, Role, Introduction, Team, Meal, MealSelection, Feedback, NetworkingInterest, NetworkingMatch, AmbiancePlaylist, AmbianceMood, TeamScore } from '../types';
+import { Participant, Role, Introduction, Team, Meal, MealSelection, Feedback, NetworkingInterest, NetworkingMatch, AmbiancePlaylist, AmbianceMood, TeamScore, WorkshopSummary } from '../types';
 import { MEALS } from '../constants';
-import { generateNetworkingMatches, generatePlaylist } from '../services/geminiService';
+import { generateNetworkingMatches, generatePlaylist, generateWorkshopSummaries } from '../services/geminiService';
 
 interface AppContextType {
     role: Role;
@@ -27,6 +27,8 @@ interface AppContextType {
     addNetworkingInterest: (interest: NetworkingInterest) => Promise<void>;
     ambiancePlaylist: AmbiancePlaylist | null;
     generateAmbiancePlaylist: (mood: AmbianceMood) => Promise<void>;
+    workshopSummary: WorkshopSummary | null;
+    generateWorkshopSummary: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -46,6 +48,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const [networkingInterests, setNetworkingInterests] = useState<NetworkingInterest[]>([]);
     const [networkingMatches, setNetworkingMatches] = useState<Record<string, NetworkingMatch[]>>({});
     const [ambiancePlaylist, setAmbiancePlaylist] = useState<AmbiancePlaylist | null>(null);
+    const [workshopSummary, setWorkshopSummary] = useState<WorkshopSummary | null>(null);
 
     useEffect(() => {
         try {
@@ -62,6 +65,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                     setFeedback(savedState.feedback || []);
                     setNetworkingInterests(savedState.networkingInterests || []);
                     setAmbiancePlaylist(savedState.ambiancePlaylist || null);
+                    setWorkshopSummary(savedState.workshopSummary || null);
                 }
             }
         } catch (error) {
@@ -81,12 +85,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 feedback,
                 networkingInterests,
                 ambiancePlaylist,
+                workshopSummary,
             };
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
         } catch (error) {
             console.error("Failed to save state to local storage", error);
         }
-    }, [role, participants, introductions, teams, scores, selections, feedback, networkingInterests, ambiancePlaylist]);
+    }, [role, participants, introductions, teams, scores, selections, feedback, networkingInterests, ambiancePlaylist, workshopSummary]);
 
     const addParticipant = (participant: Participant) => {
         setParticipants(prev => {
@@ -189,6 +194,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setAmbiancePlaylist({ mood, songs });
     };
 
+    const generateWorkshopSummary = async () => {
+        if (feedback.length === 0 && networkingInterests.length === 0) {
+            alert("요약할 데이터가 없습니다. 피드백이나 네트워킹 데이터가 필요합니다.");
+            return;
+        }
+        const summaries = await generateWorkshopSummaries(feedback, networkingInterests);
+        setWorkshopSummary({
+            ...summaries,
+            generatedAt: new Date().toISOString(),
+        });
+    };
 
     return (
         <AppContext.Provider value={{
@@ -202,6 +218,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             feedback, addFeedback, toggleFeedbackAddressed,
             networkingInterests, networkingMatches, addNetworkingInterest,
             ambiancePlaylist, generateAmbiancePlaylist,
+            workshopSummary, generateWorkshopSummary,
         }}>
             {children}
         </AppContext.Provider>

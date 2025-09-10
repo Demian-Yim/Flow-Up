@@ -90,3 +90,9 @@ export interface AmbiancePlaylist {
     mood: AmbianceMood;
     songs: Song[];
 }
+
+export interface WorkshopSummary {
+    feedbackSummary: string;
+    networkingSummary: string;
+    generatedAt: string;
+}
