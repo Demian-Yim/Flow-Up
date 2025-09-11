@@ -1,5 +1,10 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { NetworkingInterest, NetworkingMatch, YouTubePlaylist, Feedback, FeedbackCategory, Meal, RestaurantInfo } from '../types';
+import { 
+    NetworkingInterest, NetworkingMatch, YouTubePlaylist, Feedback, FeedbackCategory, 
+    Meal, RestaurantInfo, Role, Participant, Introduction, Team, MealSelection, AmbiancePlaylist,
+    TeamScore, WorkshopSummary
+} from '../types';
+import { DEFAULT_AMBIANCE_PLAYLIST } from "../constants";
 
 // API 키 존재 여부를 먼저 확인
 const API_KEY = process.env.API_KEY;
@@ -499,5 +504,81 @@ export async function generateMenuItems(restaurantQuery: string): Promise<{ rest
     } catch (error) {
         console.error("Error generating menu items:", error);
         return fallbackData;
+    }
+}
+
+
+// --- DB Service Simulation ---
+
+const FAKE_DB_KEY = 'flow-link-server-db';
+
+interface DbState {
+    role: Role;
+    participants: Participant[];
+    introductions: Introduction[];
+    teams: Team[];
+    scores: TeamScore[];
+    restaurantInfo: RestaurantInfo | null;
+    meals: Meal[];
+    selections: MealSelection[];
+    feedback: Feedback[];
+    networkingInterests: NetworkingInterest[];
+    ambiancePlaylist: AmbiancePlaylist | null;
+    workshopSummary: WorkshopSummary | null;
+    isAdminAuthenticated: boolean;
+}
+
+function getInitialState(): DbState {
+    return {
+        role: Role.Participant,
+        participants: [],
+        introductions: [],
+        teams: [],
+        scores: [],
+        restaurantInfo: {name: '순남시래기 방배점', address: '', mapUrl: ''},
+        meals: [],
+        selections: [],
+        feedback: [],
+        networkingInterests: [],
+        ambiancePlaylist: DEFAULT_AMBIANCE_PLAYLIST,
+        workshopSummary: null,
+        isAdminAuthenticated: false,
+    };
+}
+
+/**
+ * Simulates fetching the entire workshop data from a central server.
+ * Uses localStorage as a mock database.
+ */
+export async function fetchWorkshopData(): Promise<DbState> {
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network latency
+    try {
+        const savedStateJSON = localStorage.getItem(FAKE_DB_KEY);
+        if (savedStateJSON) {
+            const parsed = JSON.parse(savedStateJSON);
+            if(typeof parsed === 'object' && parsed !== null && 'role' in parsed) {
+                return parsed;
+            }
+        }
+    } catch (error) {
+        console.error("Failed to load data from fake DB", error);
+    }
+    return getInitialState();
+}
+
+/**
+ * Simulates saving the entire workshop data to a central server.
+ * Uses localStorage as a mock database.
+ */
+export async function saveWorkshopData(data: DbState): Promise<{ success: boolean }> {
+    await new Promise(resolve => setTimeout(resolve, 300)); // Simulate network latency
+    try {
+        // Clean up old per-user data key
+        localStorage.removeItem('flow-link-app-state');
+        localStorage.setItem(FAKE_DB_KEY, JSON.stringify(data));
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to save data to fake DB", error);
+        return { success: false };
     }
 }

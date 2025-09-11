@@ -17,11 +17,12 @@ import ParticipantNav from './components/ParticipantNav';
 import { useAppContext } from './context/AppContext';
 import { useParticipantId } from './hooks/useParticipantId';
 import Footer from './components/Footer';
+import Spinner from './components/Spinner';
 
 
 const App: React.FC = () => {
     const [activeTool, setActiveTool] = useState<Tool | null>(null);
-    const { role, participants, currentUser, setCurrentUser } = useAppContext();
+    const { role, participants, currentUser, setCurrentUser, isLoading } = useAppContext();
     const participantId = useParticipantId();
 
     useEffect(() => {
@@ -64,6 +65,15 @@ const App: React.FC = () => {
             default: return <Dashboard onSelectTool={setActiveTool} />;
         }
     };
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-slate-900 text-white flex flex-col justify-center items-center">
+                <Spinner />
+                <p className="mt-4 text-slate-400">워크숍 데이터를 서버에서 불러오는 중입니다...</p>
+            </div>
+        );
+    }
 
     const isParticipantNavVisible = role === Role.Participant && activeTool;
 

@@ -1,8 +1,10 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { Participant, Role, Introduction, Team, Meal, MealSelection, Feedback, NetworkingInterest, NetworkingMatch, AmbiancePlaylist, AmbianceMood, TeamScore, WorkshopSummary, RestaurantInfo } from '../types';
-import { generateNetworkingMatches, generateYouTubePlaylists, generateWorkshopSummaries, generateMenuItems } from '../services/geminiService';
+import { generateNetworkingMatches, generateYouTubePlaylists, generateWorkshopSummaries, generateMenuItems, fetchWorkshopData, saveWorkshopData } from '../services/geminiService';
+import { DEFAULT_AMBIANCE_PLAYLIST } from '../constants';
 
 interface AppContextType {
+    isLoading: boolean;
     role: Role;
     setRole: (role: Role) => void;
     participants: Participant[];
@@ -41,51 +43,19 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY = 'flow-link-app-state';
-
-const DEFAULT_AMBIANCE_PLAYLIST: AmbiancePlaylist = {
-    mood: 'Break',
-    playlists: [
-        {
-            title: "Welcome to Flow~ Link! 🎵",
-            description: "워크숍의 시작을 위한 환영 플레이리스트입니다. 관리자가 곧 분위기를 바꿀 수 있어요.",
-            videoId: "3tmd-ClpJxA",
-            thumbnailUrl: "https://i.ytimg.com/vi/3tmd-ClpJxA/hqdefault.jpg"
-        },
-        {
-            title: "편안한 라운지 재즈",
-            description: "대화와 휴식에 어울리는 부드러운 재즈 음악.",
-            videoId: "s3_e8L_Jq_c",
-            thumbnailUrl: "https://i.ytimg.com/vi/s3_e8L_Jq_c/hqdefault.jpg"
-        },
-        {
-            title: "Lo-fi Hip Hop Radio",
-            description: "집중하거나 휴식을 취할 때 듣기 좋은 비트.",
-            videoId: "5qap5aO4i9A",
-            thumbnailUrl: "https://i.ytimg.com/vi/5qap5aO4i9A/hqdefault.jpg"
-        },
-        {
-            title: "Refreshing Pop Songs",
-            description: "기분 전환을 위한 상쾌한 팝 음악 모음.",
-            videoId: "a_j_3-b-3_g",
-            thumbnailUrl: "https://i.ytimg.com/vi/a_j_3-b-3_g/hqdefault.jpg"
-        },
-        {
-            title: "감동적인 영화 OST",
-            description: "마음을 움직이는 아름다운 영화 사운드트랙.",
-            videoId: "8_4O_12c4uM",
-            thumbnailUrl: "https://i.ytimg.com/vi/8_4O_12c4uM/hqdefault.jpg"
-        },
-        {
-            title: "Acoustic Cafe Music",
-            description: "어쿠스틱 기타 선율과 함께하는 편안한 시간.",
-            videoId: "dQw4w9WgXcQ",
-            thumbnailUrl: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) => {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    const debounced = (...args: Parameters<F>) => {
+        if (timeout !== null) {
+            clearTimeout(timeout);
         }
-    ]
+        timeout = setTimeout(() => func(...args), waitFor);
+    };
+    return debounced as (...args: Parameters<F>) => void;
 };
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
+    const [isLoading, setIsLoading] = useState(true);
     const [role, setRole] = useState<Role>(Role.Participant);
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [currentUser, setCurrentUser] = useState<Participant | null>(null);
@@ -105,56 +75,53 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const ADMIN_PASSWORD = 'inamoment';
 
     useEffect(() => {
-        try {
-            const savedStateJSON = localStorage.getItem(LOCAL_STORAGE_KEY);
-            if (savedStateJSON) {
-                const savedState = JSON.parse(savedStateJSON);
-                if (savedState) {
-                    setRole(savedState.role || Role.Participant);
-                    setParticipants(savedState.participants || []);
-                    setIntroductions(savedState.introductions || []);
-                    setTeams(savedState.teams || []);
-                    setScores(savedState.scores || []);
-                    setRestaurantInfo(savedState.restaurantInfo || {name: '순남시래기 방배점', address: '', mapUrl: ''});
-                    setMeals(savedState.meals || []);
-                    setSelections(savedState.selections || []);
-                    setFeedback(savedState.feedback || []);
-                    setNetworkingInterests(savedState.networkingInterests || []);
-                    setAmbiancePlaylist(savedState.ambiancePlaylist || DEFAULT_AMBIANCE_PLAYLIST);
-                    setWorkshopSummary(savedState.workshopSummary || null);
-                    setIsAdminAuthenticated(savedState.isAdminAuthenticated || false);
-                }
-            } else {
-                 setAmbiancePlaylist(DEFAULT_AMBIANCE_PLAYLIST);
+        const loadData = async () => {
+            const data = await fetchWorkshopData();
+            setRole(data.role || Role.Participant);
+            setParticipants(data.participants || []);
+            setIntroductions(data.introductions || []);
+            setTeams(data.teams || []);
+            setScores(data.scores || []);
+            setRestaurantInfo(data.restaurantInfo || {name: '순남시래기 방배점', address: '', mapUrl: ''});
+            setMeals(data.meals || []);
+            setSelections(data.selections || []);
+            setFeedback(data.feedback || []);
+            setNetworkingInterests(data.networkingInterests || []);
+            // Matches are generated dynamically, not saved.
+            if(data.networkingInterests.length >= 2) {
+                generateNetworkingMatches(data.networkingInterests).then(setNetworkingMatches);
             }
-        } catch (error) {
-            console.error("Failed to load state from local storage", error);
-            setAmbiancePlaylist(DEFAULT_AMBIANCE_PLAYLIST);
-        }
+            setAmbiancePlaylist(data.ambiancePlaylist || DEFAULT_AMBIANCE_PLAYLIST);
+            setWorkshopSummary(data.workshopSummary || null);
+            setIsAdminAuthenticated(data.isAdminAuthenticated || false);
+            setIsLoading(false);
+        };
+        loadData();
     }, []);
 
+    const stateRef = useRef<any>();
+    stateRef.current = {
+        role, participants, introductions, teams, scores, restaurantInfo, meals, selections, 
+        feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated
+    };
+
+    const debouncedSave = useCallback(
+        // FIX: The debounced function now accepts the data to save as an argument.
+        debounce((dataToSave: any) => {
+            if (!isLoading) {
+                saveWorkshopData(dataToSave);
+            }
+        }, 1000),
+        [isLoading]
+    );
+
     useEffect(() => {
-        try {
-            const stateToSave = {
-                role,
-                participants,
-                introductions,
-                teams,
-                scores,
-                restaurantInfo,
-                meals,
-                selections,
-                feedback,
-                networkingInterests,
-                ambiancePlaylist,
-                workshopSummary,
-                isAdminAuthenticated,
-            };
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
-        } catch (error) {
-            console.error("Failed to save state to local storage", error);
+        if (!isLoading) {
+            // FIX: Pass the current state to the debounced save function.
+            debouncedSave(stateRef.current);
         }
-    }, [role, participants, introductions, teams, scores, restaurantInfo, meals, selections, feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated]);
+    }, [role, participants, introductions, teams, scores, restaurantInfo, meals, selections, feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated, debouncedSave]);
+
 
     const addParticipant = (participant: Participant) => {
         setParticipants(prev => {
@@ -361,6 +328,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     return (
         <AppContext.Provider value={{
+            isLoading,
             role, setRole,
             participants, addParticipant, removeParticipant,
             currentUser, setCurrentUser,

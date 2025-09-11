@@ -10,7 +10,7 @@ import {
     UtensilsCrossed,
     PartyPopper,
 } from 'lucide-react';
-import { Tool } from './types';
+import { Tool, AmbiancePlaylist } from './types';
 
 export const TOOLS: Tool[] = [
     { id: 'attendance', title: '오늘의 체크인 🚀', description: '사진으로 출석하고, 모두의 얼굴을 확인해요.', icon: CalendarCheck },
@@ -24,3 +24,46 @@ export const TOOLS: Tool[] = [
     { id: 'meals', title: '오늘 뭐 먹지? 🍱', description: 'AI로 실제 맛집 메뉴를 불러와 점심/저녁을 골라요.', icon: UtensilsCrossed },
     { id: 'wrapup', title: '오늘의 마무리 🌟', description: '워크숍의 성과와 추억을 AI 요약으로 확인해요.', icon: PartyPopper },
 ];
+
+
+export const DEFAULT_AMBIANCE_PLAYLIST: AmbiancePlaylist = {
+    mood: 'Break',
+    playlists: [
+        {
+            title: "Welcome to Flow~ Link! 🎵",
+            description: "워크숍의 시작을 위한 환영 플레이리스트입니다. 관리자가 곧 분위기를 바꿀 수 있어요.",
+            videoId: "3tmd-ClpJxA",
+            thumbnailUrl: "https://i.ytimg.com/vi/3tmd-ClpJxA/hqdefault.jpg"
+        },
+        {
+            title: "편안한 라운지 재즈",
+            description: "대화와 휴식에 어울리는 부드러운 재즈 음악.",
+            videoId: "s3_e8L_Jq_c",
+            thumbnailUrl: "https://i.ytimg.com/vi/s3_e8L_Jq_c/hqdefault.jpg"
+        },
+        {
+            title: "Lo-fi Hip Hop Radio",
+            description: "집중하거나 휴식을 취할 때 듣기 좋은 비트.",
+            videoId: "5qap5aO4i9A",
+            thumbnailUrl: "https://i.ytimg.com/vi/5qap5aO4i9A/hqdefault.jpg"
+        },
+        {
+            title: "Refreshing Pop Songs",
+            description: "기분 전환을 위한 상쾌한 팝 음악 모음.",
+            videoId: "a_j_3-b-3_g",
+            thumbnailUrl: "https://i.ytimg.com/vi/a_j_3-b-3_g/hqdefault.jpg"
+        },
+        {
+            title: "감동적인 영화 OST",
+            description: "마음을 움직이는 아름다운 영화 사운드트랙.",
+            videoId: "8_4O_12c4uM",
+            thumbnailUrl: "https://i.ytimg.com/vi/8_4O_12c4uM/hqdefault.jpg"
+        },
+        {
+            title: "Acoustic Cafe Music",
+            description: "어쿠스틱 기타 선율과 함께하는 편안한 시간.",
+            videoId: "dQw4w9WgXcQ",
+            thumbnailUrl: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+        }
+    ]
+};
