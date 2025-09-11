@@ -1,6 +1,6 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Participant, Role, Introduction, Team, Meal, MealSelection, Feedback, NetworkingInterest, NetworkingMatch, AmbiancePlaylist, AmbianceMood, TeamScore, WorkshopSummary, RestaurantInfo } from '../types';
-import { generateNetworkingMatches, generateYouTubePlaylists, generateWorkshopSummaries, generateMenuItems, fetchWorkshopData, saveWorkshopData } from '../services/geminiService';
+import { generateNetworkingMatches, generateYouTubePlaylists, generateWorkshopSummaries, generateMenuItems, saveWorkshopData, listenForWorkshopUpdates } from '../services/geminiService';
 import { DEFAULT_AMBIANCE_PLAYLIST } from '../constants';
 
 interface AppContextType {
@@ -74,30 +74,56 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     
     const ADMIN_PASSWORD = 'inamoment';
 
+    const updateTeams = useCallback((newTeams: Team[]) => {
+        setTeams(newTeams);
+        setScores(prevScores => {
+            const scoresMap = new Map<string, number>();
+            prevScores.forEach(s => scoresMap.set(s.teamId, s.score));
+    
+            let updatedScores = newTeams.map(team => ({
+                teamId: team.id,
+                name: team.name,
+                score: scoresMap.get(team.id) || 0,
+            }));
+            
+            const existingScores = new Set(newTeams.map(t => t.id));
+            const oldScores = prevScores.filter(s => !existingScores.has(s.teamId));
+
+            updatedScores = [...updatedScores, ...oldScores.filter(os => !updatedScores.find(us => us.teamId === os.teamId))];
+            
+            updatedScores.sort((a,b) => b.score - a.score);
+            return updatedScores;
+        });
+    }, []);
+
+    // Effect for real-time data synchronization with Firestore
     useEffect(() => {
-        const loadData = async () => {
-            const data = await fetchWorkshopData();
+        const unsubscribe = listenForWorkshopUpdates(data => {
+            console.log("Firestore data updated, syncing state...");
+            setIsLoading(true);
             setRole(data.role || Role.Participant);
             setParticipants(data.participants || []);
             setIntroductions(data.introductions || []);
-            setTeams(data.teams || []);
+            updateTeams(data.teams || []);
             setScores(data.scores || []);
             setRestaurantInfo(data.restaurantInfo || {name: '순남시래기 방배점', address: '', mapUrl: ''});
             setMeals(data.meals || []);
             setSelections(data.selections || []);
             setFeedback(data.feedback || []);
             setNetworkingInterests(data.networkingInterests || []);
-            // Matches are generated dynamically, not saved.
-            if(data.networkingInterests.length >= 2) {
+            if(data.networkingInterests && data.networkingInterests.length >= 2) {
                 generateNetworkingMatches(data.networkingInterests).then(setNetworkingMatches);
             }
             setAmbiancePlaylist(data.ambiancePlaylist || DEFAULT_AMBIANCE_PLAYLIST);
             setWorkshopSummary(data.workshopSummary || null);
             setIsAdminAuthenticated(data.isAdminAuthenticated || false);
             setIsLoading(false);
-        };
-        loadData();
-    }, []);
+        });
+
+        // Cleanup subscription on unmount
+        // FIX: Directly return the unsubscribe function for the useEffect cleanup.
+        return () => unsubscribe();
+    }, [updateTeams]);
 
     const stateRef = useRef<any>();
     stateRef.current = {
@@ -105,9 +131,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated
     };
 
-    const debouncedSave = useCallback(
-        // FIX: The debounced function now accepts the data to save as an argument.
-        debounce((dataToSave: any) => {
+    const debouncedSave = useMemo(
+        () => debounce((dataToSave: any) => {
             if (!isLoading) {
                 saveWorkshopData(dataToSave);
             }
@@ -117,11 +142,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     useEffect(() => {
         if (!isLoading) {
-            // FIX: Pass the current state to the debounced save function.
             debouncedSave(stateRef.current);
         }
-    }, [role, participants, introductions, teams, scores, restaurantInfo, meals, selections, feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated, debouncedSave]);
-
+    }, [role, participants, introductions, teams, scores, restaurantInfo, meals, selections, feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated, debouncedSave, isLoading]);
 
     const addParticipant = (participant: Participant) => {
         setParticipants(prev => {
@@ -165,28 +188,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 return newIntros;
             }
             return [...prev, introduction];
-        });
-    };
-
-    const updateTeams = (newTeams: Team[]) => {
-        setTeams(newTeams);
-        setScores(prevScores => {
-            const scoresMap = new Map<string, number>();
-            prevScores.forEach(s => scoresMap.set(s.teamId, s.score));
-    
-            let updatedScores = newTeams.map(team => ({
-                teamId: team.id,
-                name: team.name,
-                score: scoresMap.get(team.id) || 0,
-            }));
-            
-            const existingScores = new Set(newTeams.map(t => t.id));
-            const oldScores = prevScores.filter(s => !existingScores.has(s.teamId));
-
-            updatedScores = [...updatedScores, ...oldScores.filter(os => !updatedScores.find(us => us.teamId === os.teamId))];
-            
-            updatedScores.sort((a,b) => b.score - a.score);
-            return updatedScores;
         });
     };
     

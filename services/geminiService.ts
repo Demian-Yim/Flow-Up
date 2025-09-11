@@ -1,10 +1,12 @@
 import { GoogleGenAI, Type } from "@google/genai";
+import { doc, setDoc, onSnapshot, DocumentData } from "firebase/firestore";
 import { 
     NetworkingInterest, NetworkingMatch, YouTubePlaylist, Feedback, FeedbackCategory, 
     Meal, RestaurantInfo, Role, Participant, Introduction, Team, MealSelection, AmbiancePlaylist,
     TeamScore, WorkshopSummary
 } from '../types';
 import { DEFAULT_AMBIANCE_PLAYLIST } from "../constants";
+import { db } from '../firebaseConfig';
 
 // API 키 존재 여부를 먼저 확인
 const API_KEY = process.env.API_KEY;
@@ -508,9 +510,9 @@ export async function generateMenuItems(restaurantQuery: string): Promise<{ rest
 }
 
 
-// --- DB Service Simulation ---
+// --- DB Service with Firebase ---
 
-const FAKE_DB_KEY = 'flow-link-server-db';
+const WORKSHOP_DOC_ID = 'main_workshop_data'; // Using a single document for the entire workshop state
 
 interface DbState {
     role: Role;
@@ -547,38 +549,51 @@ function getInitialState(): DbState {
 }
 
 /**
- * Simulates fetching the entire workshop data from a central server.
- * Uses localStorage as a mock database.
+ * Saves the entire workshop data to Firestore.
+ * @param data - The complete state of the workshop.
  */
-export async function fetchWorkshopData(): Promise<DbState> {
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network latency
-    try {
-        const savedStateJSON = localStorage.getItem(FAKE_DB_KEY);
-        if (savedStateJSON) {
-            const parsed = JSON.parse(savedStateJSON);
-            if(typeof parsed === 'object' && parsed !== null && 'role' in parsed) {
-                return parsed;
-            }
-        }
-    } catch (error) {
-        console.error("Failed to load data from fake DB", error);
+export async function saveWorkshopData(data: DbState): Promise<{ success: boolean }> {
+    if (!db) {
+        console.error("Firebase is not initialized.");
+        return { success: false };
     }
-    return getInitialState();
+    try {
+        const workshopDocRef = doc(db, 'workshops', WORKSHOP_DOC_ID);
+        await setDoc(workshopDocRef, data, { merge: true }); // Use merge to avoid overwriting with partial data
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to save data to Firestore", error);
+        return { success: false };
+    }
 }
 
 /**
- * Simulates saving the entire workshop data to a central server.
- * Uses localStorage as a mock database.
+ * Listens for real-time updates from Firestore and calls the callback function.
+ * @param callback - A function to be called with the updated data.
+ * @returns An unsubscribe function to stop listening to updates.
  */
-export async function saveWorkshopData(data: DbState): Promise<{ success: boolean }> {
-    await new Promise(resolve => setTimeout(resolve, 300)); // Simulate network latency
-    try {
-        // Clean up old per-user data key
-        localStorage.removeItem('flow-link-app-state');
-        localStorage.setItem(FAKE_DB_KEY, JSON.stringify(data));
-        return { success: true };
-    } catch (error) {
-        console.error("Failed to save data to fake DB", error);
-        return { success: false };
+export function listenForWorkshopUpdates(callback: (data: DbState) => void): () => void {
+    if (!db) {
+        console.error("Firebase is not initialized.");
+        return () => {}; // Return a no-op unsubscribe function
     }
+    const workshopDocRef = doc(db, 'workshops', WORKSHOP_DOC_ID);
+    
+    const unsubscribe = onSnapshot(workshopDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data() as DocumentData;
+            callback({ ...getInitialState(), ...data } as DbState);
+        } else {
+            // Document doesn't exist, create it with initial state
+            console.log("No workshop document found, creating one with initial state.");
+            const initialState = getInitialState();
+            saveWorkshopData(initialState).then(() => {
+                callback(initialState);
+            });
+        }
+    }, (error) => {
+        console.error("Error listening to workshop updates:", error);
+    });
+
+    return unsubscribe;
 }
