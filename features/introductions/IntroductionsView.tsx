@@ -1,23 +1,23 @@
 import React, { useState } from 'react';
-import { Sparkles, CheckCircle } from 'lucide-react';
+import { Sparkles, CheckCircle, User, MessageCircle } from 'lucide-react';
 import Spinner from '../../components/Spinner';
 import { useAppContext } from '../../context/AppContext';
 import { useParticipantId } from '../../hooks/useParticipantId';
 import { generateIntroductions } from '../../services/geminiService';
+import { CHARACTERS } from '../../constants';
 import confetti from 'canvas-confetti';
 
 const IntroductionsView: React.FC = () => {
     const { role, currentUser, introductions, addIntroduction, participants } = useAppContext();
     const participantId = useParticipantId();
     const [formData, setFormData] = useState({ name: currentUser?.name || '', job: '', interests: '' });
-    const [generated, setGenerated] = useState<Record<string, string> | null>(null);
-    const [selectedStyle, setSelectedStyle] = useState<'expert' | 'friendly' | 'humorous' | null>(null);
-    const [selectedEmoji, setSelectedEmoji] = useState('💬');
+    const [generated, setGenerated] = useState<Array<{ style: string, text: string }> | null>(null);
+    const [selectedIntro, setSelectedIntro] = useState<{ style: string, text: string } | null>(null);
+    const [selectedCharacter, setSelectedCharacter] = useState<string>('🐰');
     const [isLoading, setIsLoading] = useState(false);
 
     const alreadySubmitted = introductions.find(i => i.participantId === participantId);
-    const emojis = ['💬', '😊', '🚀', '💡', '✨', '😂', '😎', '🤓', '🥳', '🤔', '🔥', '💖'];
-
+    
     const handleGenerate = async () => {
         if (!formData.name || !formData.job || !formData.interests) {
             alert('모든 항목을 입력해주세요.');
@@ -29,22 +29,18 @@ const IntroductionsView: React.FC = () => {
         setIsLoading(false);
     };
 
-    const handleSelect = (style: 'expert' | 'friendly' | 'humorous') => {
-        setSelectedStyle(style);
-    };
-
     const handleSubmit = () => {
-        if (generated && selectedStyle) {
+        if (selectedIntro) {
              addIntroduction({
                 participantId: participantId,
                 name: formData.name,
-                style: selectedStyle === 'expert' ? '전문가' : selectedStyle === 'friendly' ? '친근한' : '유머러스',
-                text: generated[selectedStyle],
-                emoji: selectedEmoji,
+                style: selectedIntro.style,
+                text: selectedIntro.text,
+                character: selectedCharacter,
             });
             confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
         } else {
-            alert('스타일과 이모지를 선택해주세요.');
+            alert('자기소개 스타일을 선택해주세요.');
         }
     };
 
@@ -59,8 +55,8 @@ const IntroductionsView: React.FC = () => {
                     <div className="space-y-4">
                         {introductions.map(intro => (
                             <div key={intro.participantId} className="bg-slate-700 p-4 rounded-lg">
-                                <div className="flex items-center gap-3">
-                                    <span className="text-2xl">{intro.emoji || '💬'}</span>
+                                <div className="flex items-start gap-4">
+                                    <span className="text-4xl mt-1">{intro.character || '👤'}</span>
                                     <div>
                                         <p className="font-bold text-lg text-white">{intro.name} <span className="text-sm font-normal text-brand-amber ml-2 bg-amber-500/20 px-2 py-1 rounded-full">{intro.style}</span></p>
                                         <p className="text-slate-300 mt-1">{intro.text}</p>
@@ -80,8 +76,8 @@ const IntroductionsView: React.FC = () => {
                 <CheckCircle className="w-16 h-16 text-brand-emerald mx-auto mb-4" />
                 <h2 className="text-3xl font-bold mb-2">자기소개 제출 완료!</h2>
                 <p className="text-xl text-slate-300">다른 참가자들의 자기소개도 기대해주세요!</p>
-                <div className="bg-slate-700 p-4 rounded-lg mt-6 text-left flex items-center gap-3">
-                    <span className="text-3xl">{alreadySubmitted.emoji || '💬'}</span>
+                <div className="bg-slate-700 p-4 rounded-lg mt-6 text-left flex items-start gap-4">
+                    <span className="text-4xl mt-1">{alreadySubmitted.character || '👤'}</span>
                     <div>
                         <p className="font-bold text-lg text-white">{alreadySubmitted.name} <span className="text-sm font-normal text-brand-amber ml-2 bg-amber-500/20 px-2 py-1 rounded-full">{alreadySubmitted.style}</span></p>
                         <p className="text-slate-300 mt-1">{alreadySubmitted.text}</p>
@@ -106,25 +102,28 @@ const IntroductionsView: React.FC = () => {
             ) : (
                 <div className="space-y-6">
                     <div>
-                        <h3 className="text-xl font-bold text-center mb-4">1. 마음에 드는 스타일을 선택하세요!</h3>
-                        <div className="space-y-4">
-                        {(Object.keys(generated) as Array<keyof typeof generated>).map((key) => (
-                            <div key={key} onClick={() => handleSelect(key as 'expert' | 'friendly' | 'humorous')} className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedStyle === key ? 'border-brand-emerald bg-emerald-500/20' : 'border-slate-600 hover:border-brand-purple'}`}>
-                                <h4 className="font-bold capitalize text-brand-amber">{key === 'expert' ? '전문가' : key === 'friendly' ? '친근한' : '유머러스'} 스타일</h4>
-                                <p>{generated[key]}</p>
+                        <h3 className="text-xl font-bold text-center mb-4 flex items-center justify-center gap-2"><MessageCircle size={24}/> 1. 마음에 드는 스타일을 선택하세요!</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {generated.map((intro, index) => (
+                            <div key={index} onClick={() => setSelectedIntro(intro)} className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedIntro?.text === intro.text ? 'border-brand-emerald bg-emerald-500/20' : 'border-slate-600 hover:border-brand-purple'}`}>
+                                <h4 className="font-bold capitalize text-brand-amber">{intro.style}</h4>
+                                <p className="text-slate-300">{intro.text}</p>
                             </div>
                         ))}
                         </div>
                     </div>
                     <div>
-                        <h3 className="text-xl font-bold text-center mb-4">2. 나를 표현할 아이콘을 고르세요!</h3>
+                        <h3 className="text-xl font-bold text-center mb-4 flex items-center justify-center gap-2"><User size={24} /> 2. 나를 표현할 페르소나를 고르세요!</h3>
                         <div className="flex flex-wrap justify-center gap-2 bg-slate-700 p-3 rounded-lg">
-                            {emojis.map(emoji => (
-                                <button key={emoji} onClick={() => setSelectedEmoji(emoji)} className={`text-2xl p-2 rounded-lg transition-all ${selectedEmoji === emoji ? 'bg-brand-purple scale-125' : 'hover:bg-slate-600'}`}>{emoji}</button>
+                            {CHARACTERS.map(char => (
+                                <button key={char.name} onClick={() => setSelectedCharacter(char.emoji)} className={`px-3 py-2 rounded-lg transition-all text-center ${selectedCharacter === char.emoji ? 'bg-brand-purple scale-125' : 'hover:bg-slate-600'}`}>
+                                    <span className="text-2xl block">{char.emoji || '👤'}</span>
+                                    <span className="text-xs text-slate-400">{char.name}</span>
+                                </button>
                             ))}
                         </div>
                     </div>
-                     <button onClick={handleSubmit} disabled={!selectedStyle} className="w-full flex items-center justify-center gap-2 bg-brand-emerald text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50">
+                     <button onClick={handleSubmit} disabled={!selectedIntro} className="w-full flex items-center justify-center gap-2 bg-brand-emerald text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50">
                         <CheckCircle/><span>이대로 제출하기</span>
                     </button>
                 </div>

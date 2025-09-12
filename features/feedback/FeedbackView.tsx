@@ -29,9 +29,9 @@ const generateWordCloudData = (feedbackItems: Feedback[]): { text: string; value
 
 
 const categoryConfig = {
-    Question: { icon: HelpCircle, text: '질문 🙋‍♀️', color: 'bg-blue-500/20 text-blue-400', ring: 'ring-blue-500', postit: 'bg-blue-300 text-blue-900' },
-    Suggestion: { icon: Lightbulb, text: '제안 💡', color: 'bg-amber-500/20 text-amber-400', ring: 'ring-amber-500', postit: 'bg-yellow-300 text-yellow-900' },
-    Praise: { icon: ThumbsUp, text: '칭찬 👍', color: 'bg-emerald-500/20 text-emerald-400', ring: 'ring-emerald-500', postit: 'bg-green-300 text-green-900' },
+    Question: { icon: HelpCircle, text: '질문 🙋‍♀️', color: 'bg-blue-500/20 text-blue-400', ring: 'ring-blue-500', postit: 'bg-blue-200 text-blue-900' },
+    Suggestion: { icon: Lightbulb, text: '제안 💡', color: 'bg-amber-500/20 text-amber-400', ring: 'ring-amber-500', postit: 'bg-yellow-200 text-yellow-900' },
+    Praise: { icon: ThumbsUp, text: '칭찬 👍', color: 'bg-emerald-500/20 text-emerald-400', ring: 'ring-emerald-500', postit: 'bg-green-200 text-green-900' },
 };
 
 // Admin View Components
@@ -64,11 +64,11 @@ const ListView: React.FC<{ items: Feedback[], onToggle: (id: string) => void }> 
 );
 
 const PostItView: React.FC<{ items: Feedback[] }> = ({ items }) => (
-    <div className="flex flex-wrap justify-center gap-4 p-4 min-h-[50vh]">
+    <div className="flex flex-wrap justify-center gap-4 p-4 min-h-[50vh] bg-yellow-900/20 rounded-lg bg-[url('https://www.transparenttextures.com/patterns/wood-pattern.png')]">
         {items.map((item, index) => {
-            const rotations = ['-rotate-2', 'rotate-1', 'rotate-2', '-rotate-1', 'rotate-3', '-rotate-3'];
+            const rotations = ['-rotate-3', 'rotate-2', 'rotate-3', '-rotate-2', 'rotate-1', '-rotate-1'];
             return (
-                <div key={item.id} className={`w-64 h-64 p-4 shadow-lg flex flex-col justify-between font-mono ${categoryConfig[item.category].postit} ${rotations[index % rotations.length]} transition-transform hover:scale-110 hover:z-10`}>
+                <div key={item.id} className={`w-64 h-64 p-4 shadow-lg flex flex-col justify-between font-serif ${categoryConfig[item.category].postit} ${rotations[index % rotations.length]} transition-transform hover:scale-125 hover:z-10`}>
                     <p className="text-lg flex-grow overflow-y-auto">{item.message}</p>
                     <p className="text-right font-bold">- {item.name}</p>
                 </div>
@@ -90,6 +90,7 @@ const WordCloudView: React.FC<{ items: Feedback[] }> = ({ items }) => {
 
     const maxCount = Math.max(...wordData.map(d => d.value), 1);
     const colors = ['text-brand-indigo', 'text-brand-purple', 'text-brand-emerald', 'text-brand-amber', 'text-white', 'text-blue-400', 'text-teal-300'];
+    const rotations = ['-rotate-6', 'rotate-3', 'rotate-6', '-rotate-3'];
 
     return (
         <div className="flex flex-wrap justify-center items-center gap-x-6 gap-y-3 p-4 min-h-[50vh]">
@@ -98,7 +99,7 @@ const WordCloudView: React.FC<{ items: Feedback[] }> = ({ items }) => {
                 return (
                     <span
                         key={word.text}
-                        className={`${colors[index % colors.length]} font-bold transition-all duration-300`}
+                        className={`${colors[index % colors.length]} font-bold transition-all duration-300 inline-block ${rotations[index % rotations.length]}`}
                         style={{ fontSize: `${fontSize}rem`, lineHeight: '1' }}
                     >
                         {word.text}

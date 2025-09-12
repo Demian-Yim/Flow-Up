@@ -8,7 +8,7 @@ const MotivationView: React.FC = () => {
     const [quote, setQuote] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const exampleTopics = ['팀워크', '혁신', '성장', '도전', '리더십'];
+    const exampleTopics = ['영화 명대사', '성장에 관한 책 구절', '팀워크 명언', '도전', '리더십'];
 
     const handleGenerate = async (selectedTopic?: string) => {
         const currentTopic = selectedTopic || topic || '도전과 성장';
@@ -32,7 +32,7 @@ const MotivationView: React.FC = () => {
                     type="text"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
-                    placeholder="명언 주제 (예: 팀워크, 혁신...)"
+                    placeholder="주제 (예: 영화 명대사, 팀워크, 책 구절...)"
                     className="flex-grow w-full px-4 py-3 bg-slate-800 text-white border-2 border-slate-700 rounded-lg focus:outline-none focus:border-brand-purple transition-colors"
                 />
                 <button

@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Participant, Role, Introduction, Team, Meal, MealSelection, Feedback, NetworkingInterest, NetworkingMatch, AmbiancePlaylist, AmbianceMood, TeamScore, WorkshopSummary, RestaurantInfo } from '../types';
+import { Participant, Role, Introduction, Team, Meal, MealSelection, Feedback, NetworkingInterest, NetworkingMatch, AmbiancePlaylist, AmbianceMood, TeamScore, WorkshopSummary, RestaurantInfo, WorkshopNotice } from '../types';
 import { generateNetworkingMatches, generateYouTubePlaylists, generateWorkshopSummaries, generateMenuItems, saveWorkshopData, listenForWorkshopUpdates } from '../services/geminiService';
 import { DEFAULT_AMBIANCE_PLAYLIST } from '../constants';
 
@@ -39,6 +39,8 @@ interface AppContextType {
     generateWorkshopSummary: () => Promise<void>;
     isAdminAuthenticated: boolean;
     loginAdmin: (password: string) => boolean;
+    workshopNotice: WorkshopNotice | null;
+    updateWorkshopNotice: (notice: WorkshopNotice) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -52,6 +54,17 @@ const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) =
         timeout = setTimeout(() => func(...args), waitFor);
     };
     return debounced as (...args: Parameters<F>) => void;
+};
+
+const DEFAULT_NOTICE: WorkshopNotice = {
+    title: '<9/15 (월) AI 코칭> “내 일”을 바꾸는 AI 200% 활용법',
+    date: '2025년 9월 15일(월) 10:00 - 17:00',
+    arrivalInfo: '노트북의 안정적 세팅을 위해, 9:40까지 도착을 추천 드립니다.',
+    requirements: '노트북 전원케이블, 마우스, 구글지메일 계정, 챗지피티/제미나이유료계정 로그인',
+    surveyLink: 'https://ai200.netlify.app/#/',
+    locationName: '구루피플스 강의장',
+    locationAddress: '서울 서초구 방배로15길 7 위니드빌딩 2층 (7호선 내방역, 2호선 방배역 5분거리)',
+    mapLink: 'https://naver.me/GgWNgrJ69'
 };
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
@@ -71,6 +84,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const [ambiancePlaylist, setAmbiancePlaylist] = useState<AmbiancePlaylist | null>(null);
     const [workshopSummary, setWorkshopSummary] = useState<WorkshopSummary | null>(null);
     const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
+    const [workshopNotice, setWorkshopNotice] = useState<WorkshopNotice | null>(DEFAULT_NOTICE);
     
     const ADMIN_PASSWORD = 'inamoment';
 
@@ -116,19 +130,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             }
             setAmbiancePlaylist(data.ambiancePlaylist || DEFAULT_AMBIANCE_PLAYLIST);
             setWorkshopSummary(data.workshopSummary || null);
+            setWorkshopNotice(data.workshopNotice || DEFAULT_NOTICE);
             setIsAdminAuthenticated(data.isAdminAuthenticated || false);
             setIsLoading(false);
         });
 
         // Cleanup subscription on unmount
         // FIX: Directly return the unsubscribe function for the useEffect cleanup.
-        return () => unsubscribe();
-    }, [updateTeams]);
+        return unsubscribe;
+    // Fix: The useEffect for setting up a listener should only run once on mount.
+    // The functions it uses are all stable, so an empty dependency array is correct and clearer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const stateRef = useRef<any>();
     stateRef.current = {
         role, participants, introductions, teams, scores, restaurantInfo, meals, selections, 
-        feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated
+        feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated,
+        workshopNotice
     };
 
     const debouncedSave = useMemo(
@@ -144,7 +163,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (!isLoading) {
             debouncedSave(stateRef.current);
         }
-    }, [role, participants, introductions, teams, scores, restaurantInfo, meals, selections, feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated, debouncedSave, isLoading]);
+    }, [role, participants, introductions, teams, scores, restaurantInfo, meals, selections, feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated, workshopNotice, debouncedSave, isLoading]);
 
     const addParticipant = (participant: Participant) => {
         setParticipants(prev => {
@@ -312,7 +331,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             alert("요약할 데이터가 없습니다. 피드백이나 네트워킹 데이터가 필요합니다.");
             return;
         }
-        const summaries = await generateWorkshopSummaries(feedback, networkingInterests);
+        const summaries = await generateWorkshopSummaries(feedback, networkingInterests, ambiancePlaylist, scores);
         setWorkshopSummary({
             ...summaries,
             generatedAt: new Date().toISOString(),
@@ -325,6 +344,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             return true;
         }
         return false;
+    };
+    
+    const updateWorkshopNotice = (notice: WorkshopNotice) => {
+        setWorkshopNotice(notice);
     };
 
     return (
@@ -343,6 +366,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             ambiancePlaylist, generateAmbiancePlaylist,
             workshopSummary, generateWorkshopSummary,
             isAdminAuthenticated, loginAdmin,
+            workshopNotice, updateWorkshopNotice
         }}>
             {children}
         </AppContext.Provider>

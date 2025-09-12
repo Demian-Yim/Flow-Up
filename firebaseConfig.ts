@@ -1,6 +1,7 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
+// Corrected: Use v8/compat API to resolve import errors
+import firebase from "firebase/compat/app";
+import "firebase/compat/firestore";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -19,18 +20,22 @@ const firebaseConfig = {
   appId: process.env.VITE_FIREBASE_APP_ID
 };
 
-let db: any;
+// Corrected: Specify Firestore type for db
+let db: firebase.firestore.Firestore;
 
 try {
     // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
+    // Corrected: Use v8/compat initialization
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    db = firebase.firestore();
 
     // --- Optional: Use this for local development with Firebase Emulator ---
     // Make sure you have the Firebase Emulator Suite running.
     // if (window.location.hostname === "localhost") {
     //   console.log("Connecting to Firestore Emulator");
-    //   connectFirestoreEmulator(db, 'localhost', 8080);
+    //   db.useEmulator('localhost', 8080);
     // }
     // --------------------------------------------------------------------
 

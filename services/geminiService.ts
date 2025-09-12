@@ -1,9 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { doc, setDoc, onSnapshot, DocumentData } from "firebase/firestore";
 import { 
     NetworkingInterest, NetworkingMatch, YouTubePlaylist, Feedback, FeedbackCategory, 
     Meal, RestaurantInfo, Role, Participant, Introduction, Team, MealSelection, AmbiancePlaylist,
-    TeamScore, WorkshopSummary
+    TeamScore, WorkshopSummary, WorkshopNotice
 } from '../types';
 import { DEFAULT_AMBIANCE_PLAYLIST } from "../constants";
 import { db } from '../firebaseConfig';
@@ -13,24 +12,29 @@ const API_KEY = process.env.API_KEY;
 const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
 
 /**
- * Generates three styles of introductions using the Gemini API.
+ * Generates six styles of introductions using the Gemini API.
  * If the API key is not available, it returns a fallback response.
  * @param name - The person's name.
  * @param job - The person's job or affiliation.
  * @param interests - The person's interests.
- * @returns A promise that resolves to an object with 'expert', 'friendly', and 'humorous' introductions.
+ * @returns A promise that resolves to an array of objects with 'style' and 'text'.
  */
-export async function generateIntroductions(name: string, job: string, interests: string): Promise<Record<string, string>> {
+export async function generateIntroductions(name: string, job: string, interests: string): Promise<Array<{ style: string, text: string }>> {
+    const fallbackIntroductions = [
+        { style: '전문가', text: `${job} 전문가, ${name}입니다. ${interests}에 대한 깊이 있는 대화를 나누고 싶습니다.` },
+        { style: '친근한', text: `안녕하세요! ${interests}를 좋아하는 ${name}입니다. 오늘 잘 부탁드려요!` },
+        { style: '유머러스', text: `팀의 활력소가 될 ${name}입니다. ${job}도 하고 ${interests}도 즐기는 열정맨이죠!` },
+        { style: '열정적인', text: `가슴 뛰는 도전을 즐기는 ${name}입니다! ${interests}에 대해 이야기하며 새로운 영감을 얻고 싶어요.` },
+        { style: '진중한', text: `깊이 있는 대화를 통해 성장하고 싶은 ${name}입니다. ${job} 분야와 ${interests}에 대해 함께 탐구하고 싶습니다.` },
+        { style: '창의적인', text: `새로운 아이디어를 사랑하는 ${name}입니다. ${interests}를 통해 세상을 다른 시각으로 보는 것을 즐깁니다.` }
+    ];
+
     if (!ai) {
         console.warn("Gemini API key not found. Returning mock data for introductions.");
-        return {
-            expert: `${job} 전문가, ${name}입니다. ${interests}에 대한 깊이 있는 대화를 나누고 싶습니다.`,
-            friendly: `안녕하세요! ${interests}를 좋아하는 ${name}입니다. 오늘 잘 부탁드려요!`,
-            humorous: `팀의 활력소가 될 ${name}입니다. ${job}도 하고 ${interests}도 즐기는 열정맨이죠!`
-        };
+        return fallbackIntroductions;
     }
     try {
-        const prompt = `${name}이라는 이름의 사람을 위한 자기소개를 3가지 스타일로 작성해줘. 직업은 ${job}이고, 관심사는 ${interests}야. 각 스타일은 전문가(expert), 친근한(friendly), 유머러스(humorous) 스타일이야. 각 자기소개는 100자 이내로 짧고 간결하게 작성해줘.`;
+        const prompt = `${name}이라는 이름의 사람을 위한 خود소개를 6가지 독창적이고 개성있는 스타일로 작성해줘. 직업은 ${job}이고, 관심사는 ${interests}야. 예를 들어 '열정 넘치는 탐험가', '미래에서 온 전략가', '따뜻한 이야기꾼'처럼 역할이나 성격을 부여해서 만들어줘. 각 자기소개는 100자 이내로 짧고 간결하게 작성해줘.`;
 
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
@@ -40,34 +44,30 @@ export async function generateIntroductions(name: string, job: string, interests
                 responseSchema: {
                     type: Type.OBJECT,
                     properties: {
-                        expert: {
-                            type: Type.STRING,
-                            description: "전문가 스타일의 자기소개"
-                        },
-                        friendly: {
-                            type: Type.STRING,
-                            description: "친근한 스타일의 자기소개"
-                        },
-                        humorous: {
-                            type: Type.STRING,
-                            description: "유머러스한 스타일의 자기소개"
+                        introductions: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    style: { type: Type.STRING, description: "자기소개 스타일 (예: 열정 넘치는 탐험가)" },
+                                    text: { type: Type.STRING, description: "자기소개 내용" },
+                                },
+                                required: ["style", "text"],
+                            }
                         }
                     },
-                    required: ["expert", "friendly", "humorous"]
+                    required: ["introductions"]
                 },
             },
         });
 
         const jsonText = response.text.trim();
-        return JSON.parse(jsonText);
+        const parsed = JSON.parse(jsonText);
+        return Array.isArray(parsed.introductions) ? parsed.introductions : fallbackIntroductions;
 
     } catch (error) {
         console.error("Error generating introductions:", error);
-        return {
-            expert: "전문가 스타일 자기소개를 생성하는 데 실패했습니다.",
-            friendly: "친근한 스타일 자기소개를 생성하는 데 실패했습니다.",
-            humorous: "유머러스한 스타일 자기소개를 생성하는 데 실패했습니다."
-        };
+        return fallbackIntroductions;
     }
 }
 
@@ -117,10 +117,10 @@ export async function generateTeamNames(keywords: string): Promise<string[]> {
 }
 
 /**
- * Generates a motivational quote based on a topic using the Gemini API.
+ * Generates a motivational message based on a topic using the Gemini API.
  * Returns a fallback quote if the API key is missing.
- * @param topic - The topic for the motivational quote.
- * @returns A promise that resolves to a motivational quote string.
+ * @param topic - The topic for the motivational message.
+ * @returns A promise that resolves to a motivational message string.
  */
 export async function generateMotivation(topic: string): Promise<string> {
     if (!ai) {
@@ -128,7 +128,7 @@ export async function generateMotivation(topic: string): Promise<string> {
         return "가장 큰 위험은 아무런 위험도 감수하지 않는 것이다. - 마크 주커버그";
     }
     try {
-        const prompt = `워크숍 참가자들에게 동기부여가 될 만한 명언을 하나 만들어줘. 주제는 '${topic}'이야. 너무 추상적이거나 뻔한 말이 아닌, 현실적인 상황에 적용할 수 있는 구체적이고 힘이 되는 조언으로 작성해줘.`;
+        const prompt = `'${topic}' 주제와 관련하여, 워크숍 참가자들에게 영감을 줄 수 있는 메시지를 생성해줘. 영화나 드라마의 명대사, 책의 감명 깊은 구절, 유명인의 명언, 또는 창의적인 응원 메시지 등 형식에 구애받지 말고, 듣는 이의 마음에 와닿을 수 있는 인상적인 문장으로 작성해줘.`;
 
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
@@ -305,12 +305,21 @@ export async function generateYouTubePlaylists(mood: string): Promise<YouTubePla
  * Generates summaries for workshop feedback and networking interests.
  * @param feedback - An array of feedback items.
  * @param interests - An array of networking interests.
+ * @param ambiance - The current ambiance playlist.
+ * @param scores - The current team scores.
  * @returns A promise that resolves to an object with summaries.
  */
-export async function generateWorkshopSummaries(feedback: Feedback[], interests: NetworkingInterest[]): Promise<{ feedbackSummary: string; networkingSummary: string; }> {
+export async function generateWorkshopSummaries(
+    feedback: Feedback[], 
+    interests: NetworkingInterest[],
+    ambiance: AmbiancePlaylist | null,
+    scores: TeamScore[]
+): Promise<Omit<WorkshopSummary, 'generatedAt'>> {
     const fallbackSummary = {
         feedbackSummary: "워크숍 동안 다양한 질문과 제안, 칭찬이 오갔습니다. 활발한 참여에 감사드립니다!",
         networkingSummary: "기술, 취미, 커리어 등 다채로운 주제에 대한 관심사가 공유되었습니다. 이를 바탕으로 의미 있는 네트워킹이 이루어졌기를 바랍니다.",
+        ambianceSummary: "워크숍 내내 활기차고 긍정적인 분위기가 이어졌습니다. 음악과 함께 즐거운 시간을 보내셨기를 바랍니다.",
+        teamDynamicsSummary: "모든 팀이 열정적으로 참여하며 선의의 경쟁을 펼쳤습니다. 팀원들과의 협력을 통해 좋은 결과를 만들어낸 것을 축하합니다!",
     };
 
     if (!ai) {
@@ -319,15 +328,28 @@ export async function generateWorkshopSummaries(feedback: Feedback[], interests:
     }
     
     try {
-        const prompt = `워크숍 활동 요약 AI입니다. 아래에 제공된 피드백 목록과 네트워킹 관심사 목록을 분석하여, 각 항목에 대한 긍정적이고 간결한 요약문을 한국어로 생성해주세요.
+        const prompt = `워크숍 활동 종합 요약 AI입니다. 아래에 제공된 네 가지 데이터를 분석하여, 각 항목에 대한 긍정적이고 통찰력 있는 요약문을 한국어로 생성해주세요.
 
-데이터:
-피드백 목록: ${JSON.stringify(feedback.map(f => ({ category: f.category, message: f.message })))}
-네트워킹 관심사: ${JSON.stringify(interests.map(i => i.interests))}
+### 분석 데이터 ###
 
-요약문은 아래 JSON 스키마를 따라 생성해야 합니다.
-- feedbackSummary: 전반적인 피드백의 경향을 요약합니다. 어떤 질문이 많았는지, 주요 제안은 무엇이었는지, 긍정적인 칭찬 내용은 무엇이었는지 등을 포함해주세요.
-- networkingSummary: 참가자들이 주로 어떤 주제에 관심을 보였는지 요약합니다. 가장 많이 언급된 인기 주제나 키워드를 포함해주세요.
+1.  **피드백 목록**:
+    ${JSON.stringify(feedback.map(f => ({ category: f.category, message: f.message })))}
+
+2.  **네트워킹 관심사**:
+    ${JSON.stringify(interests.map(i => i.interests))}
+    
+3.  **오늘의 분위기**:
+    현재 설정된 음악 플레이리스트의 무드는 '${ambiance?.mood || '알 수 없음'}' 입니다.
+
+4.  **팀별 스코어**:
+    ${JSON.stringify(scores)}
+
+### 요약문 생성 가이드 ###
+
+-   **feedbackSummary**: 전반적인 피드백의 경향을 요약합니다. 어떤 종류(질문, 제안, 칭찬)의 피드백이 많았는지, 핵심 키워드는 무엇이었는지 언급해주세요.
+-   **networkingSummary**: 참가자들이 주로 어떤 주제에 관심을 보였는지 요약합니다. 가장 많이 언급된 인기 주제나 키워드를 2~3개 짚어주세요.
+-   **ambianceSummary**: 설정된 음악 무드를 바탕으로 워크숍의 전반적인 분위기를 묘사해주세요. (예: '집중' 무드였다면, '차분하고 몰입도 높은 분위기 속에서 진행되었습니다.')
+-   **teamDynamicsSummary**: 팀별 스코어를 참고하여 워크숍의 열기와 팀 활동 양상을 요약해주세요. 1등 팀을 언급하며 축하하고, 전반적인 참여와 협력의 분위기를 긍정적으로 평가해주세요.
 `;
 
         const response = await ai.models.generateContent({
@@ -340,8 +362,10 @@ export async function generateWorkshopSummaries(feedback: Feedback[], interests:
                     properties: {
                         feedbackSummary: { type: Type.STRING, description: "피드백 요약문" },
                         networkingSummary: { type: Type.STRING, description: "네트워킹 관심사 요약문" },
+                        ambianceSummary: { type: Type.STRING, description: "분위기 요약문" },
+                        teamDynamicsSummary: { type: Type.STRING, description: "팀 활동 및 스코어 요약문" },
                     },
-                    required: ["feedbackSummary", "networkingSummary"],
+                    required: ["feedbackSummary", "networkingSummary", "ambianceSummary", "teamDynamicsSummary"],
                 },
             },
         });
@@ -527,6 +551,7 @@ interface DbState {
     networkingInterests: NetworkingInterest[];
     ambiancePlaylist: AmbiancePlaylist | null;
     workshopSummary: WorkshopSummary | null;
+    workshopNotice: WorkshopNotice | null;
     isAdminAuthenticated: boolean;
 }
 
@@ -544,6 +569,7 @@ function getInitialState(): DbState {
         networkingInterests: [],
         ambiancePlaylist: DEFAULT_AMBIANCE_PLAYLIST,
         workshopSummary: null,
+        workshopNotice: null,
         isAdminAuthenticated: false,
     };
 }
@@ -558,8 +584,10 @@ export async function saveWorkshopData(data: DbState): Promise<{ success: boolea
         return { success: false };
     }
     try {
-        const workshopDocRef = doc(db, 'workshops', WORKSHOP_DOC_ID);
-        await setDoc(workshopDocRef, data, { merge: true }); // Use merge to avoid overwriting with partial data
+        // Corrected: Use namespaced (v8/compat) API
+        const workshopDocRef = db.collection('workshops').doc(WORKSHOP_DOC_ID);
+        // Corrected: Use namespaced (v8/compat) API
+        await workshopDocRef.set(data, { merge: true }); // Use merge to avoid overwriting with partial data
         return { success: true };
     } catch (error) {
         console.error("Failed to save data to Firestore", error);
@@ -577,11 +605,14 @@ export function listenForWorkshopUpdates(callback: (data: DbState) => void): () 
         console.error("Firebase is not initialized.");
         return () => {}; // Return a no-op unsubscribe function
     }
-    const workshopDocRef = doc(db, 'workshops', WORKSHOP_DOC_ID);
+    // Use namespaced (v8/compat) API
+    const workshopDocRef = db.collection('workshops').doc(WORKSHOP_DOC_ID);
     
-    const unsubscribe = onSnapshot(workshopDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-            const data = docSnap.data() as DocumentData;
+    // Use namespaced (v8/compat) API
+    const unsubscribe = workshopDocRef.onSnapshot((docSnap) => {
+        // Corrected: Use `docSnap.exists` property for Firebase v8 compat API.
+        if (docSnap.exists) {
+            const data = docSnap.data();
             callback({ ...getInitialState(), ...data } as DbState);
         } else {
             // Document doesn't exist, create it with initial state

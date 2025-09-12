@@ -10,6 +10,7 @@ import NetworkingView from './features/networking/NetworkingView';
 import AmbianceView from './features/ambiance/AmbianceView';
 import MealSelectorView from './features/meals/MealSelectorView';
 import WrapUpView from './features/wrapup/WrapUpView';
+import NoticeView from './features/notice/NoticeView';
 import { TOOLS } from './constants';
 import { Tool, Role } from './types';
 import Header from './components/Header';
@@ -52,6 +53,7 @@ const App: React.FC = () => {
         if (!activeTool) return <Dashboard onSelectTool={setActiveTool} />;
         
         switch (activeTool.id) {
+            case 'notice': return <NoticeView />;
             case 'attendance': return <AttendanceView />;
             case 'introductions': return <IntroductionsView />;
             case 'teams': return <TeamBuilderView />;

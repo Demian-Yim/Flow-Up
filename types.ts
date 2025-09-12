@@ -23,9 +23,10 @@ export interface Participant {
 export interface Introduction {
     participantId: string;
     name: string;
-    style: '전문가' | '친근한' | '유머러스';
+    style: string;
     text: string;
     emoji?: string;
+    character?: string;
 }
 
 export interface Team {
@@ -100,8 +101,21 @@ export interface AmbiancePlaylist {
     playlists: YouTubePlaylist[];
 }
 
+export interface WorkshopNotice {
+    title: string;
+    date: string;
+    arrivalInfo: string;
+    requirements: string;
+    surveyLink: string;
+    locationName: string;
+    locationAddress: string;
+    mapLink: string;
+}
+
 export interface WorkshopSummary {
     feedbackSummary: string;
     networkingSummary: string;
+    ambianceSummary: string;
+    teamDynamicsSummary: string;
     generatedAt: string;
 }

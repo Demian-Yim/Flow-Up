@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PartyPopper, Trophy, Camera, Sparkles, RefreshCw, AlertTriangle, Printer } from 'lucide-react';
+import { PartyPopper, Trophy, Camera, Sparkles, RefreshCw, AlertTriangle, Printer, Music, Users } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import Spinner from '../../components/Spinner';
 
@@ -81,6 +81,32 @@ const WrapUpView: React.FC = () => {
                         }
                     `}
                 </style>
+                {/* AI Summaries */}
+                <div className="bg-slate-800 p-6 rounded-2xl print-avoid-break print-bg-white">
+                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-purple-300 print-text-black"><Sparkles /> AI가 요약한 워크숍</h3>
+                    <div className="space-y-4">
+                        <div className="bg-slate-700/50 p-4 rounded-lg print-bg-white">
+                            <h4 className="font-bold text-slate-300 mb-1 print-text-gray">피드백 요약</h4>
+                            <p className="text-slate-300 whitespace-pre-wrap print-text-black">{workshopSummary.feedbackSummary}</p>
+                        </div>
+                        <div className="bg-slate-700/50 p-4 rounded-lg print-bg-white">
+                            <h4 className="font-bold text-slate-300 mb-1 print-text-gray">네트워킹 관심사 요약</h4>
+                             <p className="text-slate-300 whitespace-pre-wrap print-text-black">{workshopSummary.networkingSummary}</p>
+                        </div>
+                         <div className="bg-slate-700/50 p-4 rounded-lg print-bg-white">
+                            <h4 className="font-bold text-slate-300 mb-1 print-text-gray">오늘의 분위기 요약</h4>
+                             <p className="text-slate-300 whitespace-pre-wrap print-text-black">{workshopSummary.ambianceSummary}</p>
+                        </div>
+                         <div className="bg-slate-700/50 p-4 rounded-lg print-bg-white">
+                            <h4 className="font-bold text-slate-300 mb-1 print-text-gray">팀 활동 하이라이트</h4>
+                             <p className="text-slate-300 whitespace-pre-wrap print-text-black">{workshopSummary.teamDynamicsSummary}</p>
+                        </div>
+                         <p className="text-xs text-slate-500 text-right print-text-gray">
+                            생성 시각: {new Date(workshopSummary.generatedAt).toLocaleString('ko-KR')}
+                        </p>
+                    </div>
+                </div>
+
                 {/* Final Scoreboard */}
                 <div className="bg-slate-800 p-6 rounded-2xl print-avoid-break print-bg-white">
                     <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-amber-300 print-text-black"><Trophy /> 최종 스코어보드</h3>
@@ -110,24 +136,6 @@ const WrapUpView: React.FC = () => {
                                 className="w-16 h-16 rounded-full object-cover border-2 border-slate-600 hover:border-brand-purple transition-all"
                             />
                         ))}
-                    </div>
-                </div>
-
-                {/* AI Summaries */}
-                <div className="bg-slate-800 p-6 rounded-2xl print-avoid-break print-bg-white">
-                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-purple-300 print-text-black"><Sparkles /> AI가 요약한 워크숍</h3>
-                    <div className="space-y-4">
-                        <div className="bg-slate-700/50 p-4 rounded-lg print-bg-white">
-                            <h4 className="font-bold text-slate-300 mb-1 print-text-gray">피드백 요약</h4>
-                            <p className="text-slate-300 whitespace-pre-wrap print-text-black">{workshopSummary.feedbackSummary}</p>
-                        </div>
-                        <div className="bg-slate-700/50 p-4 rounded-lg print-bg-white">
-                            <h4 className="font-bold text-slate-300 mb-1 print-text-gray">네트워킹 관심사 요약</h4>
-                             <p className="text-slate-300 whitespace-pre-wrap print-text-black">{workshopSummary.networkingSummary}</p>
-                        </div>
-                         <p className="text-xs text-slate-500 text-right print-text-gray">
-                            생성 시각: {new Date(workshopSummary.generatedAt).toLocaleString('ko-KR')}
-                        </p>
                     </div>
                 </div>
             </div>

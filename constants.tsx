@@ -1,4 +1,5 @@
 import {
+    ClipboardList,
     CalendarCheck,
     Sparkles,
     Users,
@@ -13,6 +14,7 @@ import {
 import { Tool, AmbiancePlaylist } from './types';
 
 export const TOOLS: Tool[] = [
+    { id: 'notice', title: '워크숍 공지 📢', description: '일정, 장소, 준비물 등 중요 정보를 확인해요.', icon: ClipboardList },
     { id: 'attendance', title: '오늘의 체크인 🚀', description: '사진으로 출석하고, 모두의 얼굴을 확인해요.', icon: CalendarCheck },
     { id: 'introductions', title: 'AI 아이스브레이킹 💬', description: 'AI가 만들어주는 자기소개로 서로를 알아가요.', icon: Sparkles },
     { id: 'teams', title: '드림팀 빌더 ✨', description: '최적의 팀을 구성하고, AI로 팀 이름을 만들어요.', icon: Users },
@@ -67,3 +69,16 @@ export const DEFAULT_AMBIANCE_PLAYLIST: AmbiancePlaylist = {
         }
     ]
 };
+
+export const CHARACTERS = [
+    { name: '주디 (주토피아)', emoji: '🐰' },
+    { name: '닉 (주토피아)', emoji: '🦊' },
+    { name: '버즈 (토이스토리)', emoji: '🧑‍🚀' },
+    { name: '우디 (토이스토리)', emoji: '🤠' },
+    { name: '도리 (니모를 찾아서)', emoji: '🐠' },
+    { name: '설리반 (몬스터 주식회사)', emoji: '👹' },
+    { name: '올라프 (겨울왕국)', emoji: '☃️' },
+    { name: '그루트 (가오갤)', emoji: '🌳' },
+    { name: '라일리 (인사이드 아웃)', emoji: '👧' },
+    { name: '페르소나 없음', emoji: '' },
+];
