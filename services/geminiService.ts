@@ -479,11 +479,15 @@ export async function generateMenuItems(restaurantQuery: string): Promise<{ rest
     }
     
     try {
-        const prompt = `당신은 대한민국 맛집 메뉴판 전문가입니다. '${restaurantQuery}' 식당의 네이버 지도 정보를 기반으로, 대표 메뉴 5-7개와 식당 정보를 찾아 아래 JSON 스키마에 맞춰 응답해주세요.
-- 각 메뉴에 대한 설명은 매력적으로 작성해주세요.
-- 메뉴별로 가장 어울리는 이모지(emoji)를 하나씩 포함해주세요.
-- 가격은 숫자만 포함해야 합니다.
-- 식당의 정확한 주소와 네이버 지도 URL을 찾아주세요.`;
+        const prompt = `당신은 대한민국 맛집 메뉴판 전문가입니다. '${restaurantQuery}' 식당의 최신 네이버 지도 정보를 검색하여, 대표 '음식' 메뉴 5-7개와 식당 정보를 찾아 아래 JSON 스키마에 맞춰 응답해주세요.
+
+**매우 중요한 규칙:**
+- **주류(소주, 맥주, 막걸리 등)와 음료수(콜라, 사이다 등)는 반드시 제외해주세요.**
+- 오직 음식 메뉴만 포함해야 합니다.
+- 메뉴 설명은 실제 메뉴판처럼 간결하고 매력적으로 작성해주세요.
+- 가격은 숫자만 포함해야 합니다 (예: 12000).
+- 메뉴별로 가장 어울리는 음식 이모지(emoji)를 하나씩 포함해주세요.
+- 식당의 정확한 이름, 주소, 그리고 네이버 지도 URL을 반드시 찾아주세요.`;
 
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
@@ -610,7 +614,7 @@ export function listenForWorkshopUpdates(callback: (data: DbState) => void): () 
     
     // Use namespaced (v8/compat) API
     const unsubscribe = workshopDocRef.onSnapshot((docSnap) => {
-        // Corrected: Use `docSnap.exists` property for Firebase v8 compat API.
+        // With the Firebase v8 compat API, `exists` is a boolean property.
         if (docSnap.exists) {
             const data = docSnap.data();
             callback({ ...getInitialState(), ...data } as DbState);

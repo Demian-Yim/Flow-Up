@@ -1,4 +1,3 @@
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -13,7 +12,10 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <AppProvider>
-      <App />
+      {/* Fix: Wrapped App in a fragment to resolve a potential typing issue with JSX children. */}
+      <>
+        <App />
+      </>
     </AppProvider>
   </React.StrictMode>
 );

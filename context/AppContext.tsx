@@ -112,7 +112,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     // Effect for real-time data synchronization with Firestore
     useEffect(() => {
-        const unsubscribe = listenForWorkshopUpdates(data => {
+        const unsubscribe = listenForWorkshopUpdates((data) => {
             console.log("Firestore data updated, syncing state...");
             setIsLoading(true);
             setRole(data.role || Role.Participant);
