@@ -114,7 +114,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         const unsubscribe = listenForWorkshopUpdates((data) => {
             console.log("Firestore data updated, syncing state...");
-            setIsLoading(true);
             setRole(data.role || Role.Participant);
             setParticipants(data.participants || []);
             setIntroductions(data.introductions || []);
