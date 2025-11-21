@@ -543,7 +543,6 @@ export async function generateMenuItems(restaurantQuery: string): Promise<{ rest
 const WORKSHOP_DOC_ID = 'main_workshop_data'; // Using a single document for the entire workshop state
 
 interface DbState {
-    role: Role;
     participants: Participant[];
     introductions: Introduction[];
     teams: Team[];
@@ -556,12 +555,10 @@ interface DbState {
     ambiancePlaylist: AmbiancePlaylist | null;
     workshopSummary: WorkshopSummary | null;
     workshopNotice: WorkshopNotice | null;
-    isAdminAuthenticated: boolean;
 }
 
 function getInitialState(): DbState {
     return {
-        role: Role.Participant,
         participants: [],
         introductions: [],
         teams: [],
@@ -574,7 +571,6 @@ function getInitialState(): DbState {
         ambiancePlaylist: DEFAULT_AMBIANCE_PLAYLIST,
         workshopSummary: null,
         workshopNotice: null,
-        isAdminAuthenticated: false,
     };
 }
 

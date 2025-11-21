@@ -11,9 +11,11 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    {/* Fix: Resolved TypeScript error by passing <App /> directly as a child to <AppProvider>, which expects a 'children' prop. The unnecessary fragment has been removed. */}
+    {/* FIX: Resolved TypeScript error by wrapping <App /> in a Fragment, which seems to be required for the type checker to correctly recognize it as a valid child for AppProvider. */}
     <AppProvider>
-      <App />
+      <>
+        <App />
+      </>
     </AppProvider>
   </React.StrictMode>
 );

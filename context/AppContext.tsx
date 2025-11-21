@@ -114,7 +114,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         const unsubscribe = listenForWorkshopUpdates((data) => {
             console.log("Firestore data updated, syncing state...");
-            setRole(data.role || Role.Participant);
             setParticipants(data.participants || []);
             setIntroductions(data.introductions || []);
             updateTeams(data.teams || []);
@@ -130,7 +129,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             setAmbiancePlaylist(data.ambiancePlaylist || DEFAULT_AMBIANCE_PLAYLIST);
             setWorkshopSummary(data.workshopSummary || null);
             setWorkshopNotice(data.workshopNotice || DEFAULT_NOTICE);
-            setIsAdminAuthenticated(data.isAdminAuthenticated || false);
             setIsLoading(false);
         });
 
@@ -142,17 +140,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const stateRef = useRef<any>();
-    stateRef.current = {
-        role, participants, introductions, teams, scores, restaurantInfo, meals, selections, 
-        feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated,
-        workshopNotice
-    };
+    const workshopDataToSync = useMemo(() => ({
+        participants, introductions, teams, scores, restaurantInfo, meals, selections, 
+        feedback, networkingInterests, ambiancePlaylist, workshopSummary, workshopNotice
+    }), [participants, introductions, teams, scores, restaurantInfo, meals, selections, feedback, networkingInterests, ambiancePlaylist, workshopSummary, workshopNotice]);
+    
+    const workshopDataRef = useRef(workshopDataToSync);
+    workshopDataRef.current = workshopDataToSync;
 
     const debouncedSave = useMemo(
-        () => debounce((dataToSave: any) => {
+        () => debounce(() => {
             if (!isLoading) {
-                saveWorkshopData(dataToSave);
+                saveWorkshopData(workshopDataRef.current);
             }
         }, 1000),
         [isLoading]
@@ -160,9 +159,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     useEffect(() => {
         if (!isLoading) {
-            debouncedSave(stateRef.current);
+            debouncedSave();
         }
-    }, [role, participants, introductions, teams, scores, restaurantInfo, meals, selections, feedback, networkingInterests, ambiancePlaylist, workshopSummary, isAdminAuthenticated, workshopNotice, debouncedSave, isLoading]);
+    }, [workshopDataToSync, debouncedSave, isLoading]);
 
     const addParticipant = (participant: Participant) => {
         setParticipants(prev => {
