@@ -1,6 +1,6 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
 import { Participant, Role, Introduction, Team, Meal, MealSelection, Feedback, NetworkingInterest, NetworkingMatch, AmbiancePlaylist, AmbianceMood, TeamScore, WorkshopSummary, RestaurantInfo, WorkshopNotice } from '../types';
-import { generateNetworkingMatches, generateYouTubePlaylists, generateWorkshopSummaries, generateMenuItems, saveWorkshopData, listenForWorkshopUpdates } from '../services/geminiService';
+import { generateNetworkingMatches, generateYouTubePlaylists, generateWorkshopSummaries, generateMenuItems, dbService } from '../services/geminiService';
 import { DEFAULT_AMBIANCE_PLAYLIST } from '../constants';
 
 interface AppContextType {
@@ -45,17 +45,6 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) => {
-    let timeout: ReturnType<typeof setTimeout> | null = null;
-    const debounced = (...args: Parameters<F>) => {
-        if (timeout !== null) {
-            clearTimeout(timeout);
-        }
-        timeout = setTimeout(() => func(...args), waitFor);
-    };
-    return debounced as (...args: Parameters<F>) => void;
-};
-
 const DEFAULT_NOTICE: WorkshopNotice = {
     title: '<9/15 (월) AI 코칭> “내 일”을 바꾸는 AI 200% 활용법',
     date: '2025년 9월 15일(월) 10:00 - 17:00',
@@ -67,109 +56,80 @@ const DEFAULT_NOTICE: WorkshopNotice = {
     mapLink: 'https://naver.me/GgWNgrJ69'
 };
 
-export const AppProvider = ({ children }: { children: ReactNode }) => {
+export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [role, setRole] = useState<Role>(Role.Participant);
+    
+    // Data States
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [currentUser, setCurrentUser] = useState<Participant | null>(null);
+    const [feedback, setFeedback] = useState<Feedback[]>([]);
+    const [networkingInterests, setNetworkingInterests] = useState<NetworkingInterest[]>([]);
+    
+    // Config States (from single doc)
     const [introductions, setIntroductions] = useState<Introduction[]>([]);
     const [teams, setTeams] = useState<Team[]>([]);
     const [scores, setScores] = useState<TeamScore[]>([]);
     const [restaurantInfo, setRestaurantInfo] = useState<RestaurantInfo | null>({name: '순남시래기 방배점', address: '', mapUrl: ''});
     const [meals, setMeals] = useState<Meal[]>([]);
     const [selections, setSelections] = useState<MealSelection[]>([]);
-    const [feedback, setFeedback] = useState<Feedback[]>([]);
-    const [networkingInterests, setNetworkingInterests] = useState<NetworkingInterest[]>([]);
-    const [networkingMatches, setNetworkingMatches] = useState<Record<string, NetworkingMatch[]>>({});
-    const [ambiancePlaylist, setAmbiancePlaylist] = useState<AmbiancePlaylist | null>(null);
+    const [ambiancePlaylist, setAmbiancePlaylist] = useState<AmbiancePlaylist | null>(DEFAULT_AMBIANCE_PLAYLIST);
     const [workshopSummary, setWorkshopSummary] = useState<WorkshopSummary | null>(null);
-    const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
     const [workshopNotice, setWorkshopNotice] = useState<WorkshopNotice | null>(DEFAULT_NOTICE);
+    
+    // Local Derived State
+    const [networkingMatches, setNetworkingMatches] = useState<Record<string, NetworkingMatch[]>>({});
+    const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
     
     const ADMIN_PASSWORD = 'inamoment';
 
-    const updateTeams = useCallback((newTeams: Team[]) => {
-        setTeams(newTeams);
-        setScores(prevScores => {
-            const scoresMap = new Map<string, number>();
-            prevScores.forEach(s => scoresMap.set(s.teamId, s.score));
-    
-            let updatedScores = newTeams.map(team => ({
-                teamId: team.id,
-                name: team.name,
-                score: scoresMap.get(team.id) || 0,
-            }));
-            
-            const existingScores = new Set(newTeams.map(t => t.id));
-            const oldScores = prevScores.filter(s => !existingScores.has(s.teamId));
-
-            updatedScores = [...updatedScores, ...oldScores.filter(os => !updatedScores.find(us => us.teamId === os.teamId))];
-            
-            updatedScores.sort((a,b) => b.score - a.score);
-            return updatedScores;
-        });
-    }, []);
-
-    // Effect for real-time data synchronization with Firestore
+    // --- Real-time Listeners for separate collections ---
     useEffect(() => {
-        const unsubscribe = listenForWorkshopUpdates((data) => {
-            console.log("Firestore data updated, syncing state...");
-            setParticipants(data.participants || []);
+        // 1. Participants
+        const unsubParticipants = dbService.listenToParticipants((data) => {
+            setParticipants(data);
+        });
+
+        // 2. Feedback
+        const unsubFeedback = dbService.listenToFeedback((data) => {
+            setFeedback(data);
+        });
+
+        // 3. Networking
+        const unsubNetworking = dbService.listenToNetworking((data) => {
+            setNetworkingInterests(data);
+            if(data.length >= 2) {
+                generateNetworkingMatches(data).then(setNetworkingMatches);
+            }
+        });
+
+        // 4. Global Config (Teams, Scores, Meals, etc.)
+        const unsubConfig = dbService.listenToConfig((data) => {
             setIntroductions(data.introductions || []);
-            updateTeams(data.teams || []);
+            setTeams(data.teams || []);
             setScores(data.scores || []);
             setRestaurantInfo(data.restaurantInfo || {name: '순남시래기 방배점', address: '', mapUrl: ''});
             setMeals(data.meals || []);
             setSelections(data.selections || []);
-            setFeedback(data.feedback || []);
-            setNetworkingInterests(data.networkingInterests || []);
-            if(data.networkingInterests && data.networkingInterests.length >= 2) {
-                generateNetworkingMatches(data.networkingInterests).then(setNetworkingMatches);
-            }
             setAmbiancePlaylist(data.ambiancePlaylist || DEFAULT_AMBIANCE_PLAYLIST);
             setWorkshopSummary(data.workshopSummary || null);
             setWorkshopNotice(data.workshopNotice || DEFAULT_NOTICE);
             setIsLoading(false);
         });
 
-        // Cleanup subscription on unmount
-        // FIX: Directly return the unsubscribe function for the useEffect cleanup.
-        return unsubscribe;
-    // Fix: The useEffect for setting up a listener should only run once on mount.
-    // The functions it uses are all stable, so an empty dependency array is correct and clearer.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        return () => {
+            unsubParticipants();
+            unsubFeedback();
+            unsubNetworking();
+            unsubConfig();
+        };
     }, []);
 
-    const workshopDataToSync = useMemo(() => ({
-        participants, introductions, teams, scores, restaurantInfo, meals, selections, 
-        feedback, networkingInterests, ambiancePlaylist, workshopSummary, workshopNotice
-    }), [participants, introductions, teams, scores, restaurantInfo, meals, selections, feedback, networkingInterests, ambiancePlaylist, workshopSummary, workshopNotice]);
-    
-    const workshopDataRef = useRef(workshopDataToSync);
-    workshopDataRef.current = workshopDataToSync;
 
-    const debouncedSave = useMemo(
-        () => debounce(() => {
-            if (!isLoading) {
-                saveWorkshopData(workshopDataRef.current);
-            }
-        }, 1000),
-        [isLoading]
-    );
-
-    useEffect(() => {
-        if (!isLoading) {
-            debouncedSave();
-        }
-    }, [workshopDataToSync, debouncedSave, isLoading]);
+    // --- Actions that write to DB ---
 
     const addParticipant = (participant: Participant) => {
-        setParticipants(prev => {
-            if (prev.find(p => p.id === participant.id)) {
-                return prev.map(p => p.id === participant.id ? participant : p);
-            }
-            return [...prev, participant];
-        });
+        dbService.addParticipant(participant);
         if(role === Role.Participant) {
           setCurrentUser(participant);
         }
@@ -179,46 +139,63 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (currentUser && currentUser.id === participantId) {
             setCurrentUser(null);
         }
-
-        setParticipants(prev => prev.filter(p => p.id !== participantId));
-        setIntroductions(prev => prev.filter(i => i.participantId !== participantId));
-        setSelections(prev => prev.filter(s => s.participantId !== participantId));
-        setFeedback(prev => prev.filter(f => f.participantId !== participantId));
-        setNetworkingInterests(prev => prev.filter(ni => ni.participantId !== participantId));
-
-        const updatedTeams = teams
-            .map(team => ({
-                ...team,
-                members: team.members.filter(member => member.id !== participantId),
-            }))
-            .filter(team => team.members.length > 0);
+        dbService.removeParticipant(participantId);
         
-        updateTeams(updatedTeams);
+        // Remove from teams locally to update config
+        const updatedTeams = teams.map(team => ({
+            ...team,
+            members: team.members.filter(member => member.id !== participantId),
+        })).filter(team => team.members.length > 0);
+        
+        // Remove introductions, selections, etc. from Config
+        const updatedIntros = introductions.filter(i => i.participantId !== participantId);
+        const updatedSelections = selections.filter(s => s.participantId !== participantId);
+
+        dbService.updateConfig({
+            teams: updatedTeams,
+            introductions: updatedIntros,
+            selections: updatedSelections
+        });
     };
 
     const addIntroduction = (introduction: Introduction) => {
-        setIntroductions(prev => {
-            const existingIndex = prev.findIndex(i => i.participantId === introduction.participantId);
-            if (existingIndex > -1) {
-                const newIntros = [...prev];
-                newIntros[existingIndex] = introduction;
-                return newIntros;
-            }
-            return [...prev, introduction];
-        });
+        const newIntros = [...introductions];
+        const existingIndex = newIntros.findIndex(i => i.participantId === introduction.participantId);
+        if (existingIndex > -1) {
+            newIntros[existingIndex] = introduction;
+        } else {
+            newIntros.push(introduction);
+        }
+        dbService.updateConfig({ introductions: newIntros });
     };
+
+    const updateTeams = useCallback((newTeams: Team[]) => {
+        // Logic to sync scores with team structure changes
+        const scoresMap = new Map<string, number>();
+        scores.forEach(s => scoresMap.set(s.teamId, s.score));
+
+        let updatedScores = newTeams.map(team => ({
+            teamId: team.id,
+            name: team.name,
+            score: scoresMap.get(team.id) || 0,
+        }));
+        
+        // Keep old scores if teams exist in both
+        const existingScores = new Set(newTeams.map(t => t.id));
+        const oldScores = scores.filter(s => !existingScores.has(s.teamId));
+        updatedScores = [...updatedScores, ...oldScores.filter(os => !updatedScores.find(us => us.teamId === os.teamId))];
+        updatedScores.sort((a,b) => b.score - a.score);
+
+        dbService.updateConfig({ teams: newTeams, scores: updatedScores });
+    }, [scores]);
     
     const moveParticipantToTeam = (participantId: string, newTeamId: string) => {
         let participantToMove: Participant | undefined;
-        
         const teamsWithoutParticipant = teams.map(team => {
             const memberIndex = team.members.findIndex(m => m.id === participantId);
             if (memberIndex > -1) {
                 participantToMove = team.members[memberIndex];
-                return {
-                    ...team,
-                    members: team.members.filter(m => m.id !== participantId),
-                };
+                return { ...team, members: team.members.filter(m => m.id !== participantId) };
             }
             return team;
         });
@@ -227,10 +204,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         const newTeams = teamsWithoutParticipant.map(team => {
             if (team.id === newTeamId) {
-                return {
-                    ...team,
-                    members: [...team.members, participantToMove!].sort((a,b) => a.name.localeCompare(b.name)),
-                };
+                return { ...team, members: [...team.members, participantToMove!].sort((a,b) => a.name.localeCompare(b.name)) };
             }
             return team;
         });
@@ -239,16 +213,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const updateScore = (teamId: string, delta: number) => {
-        setScores(prevScores => {
-            const newScores = prevScores.map(s => 
-                s.teamId === teamId ? { ...s, score: Math.min(10000000, Math.max(0, s.score + delta * 10)) } : s
-            );
-            newScores.sort((a, b) => b.score - a.score);
-            return newScores;
-        });
+        const newScores = scores.map(s => 
+            s.teamId === teamId ? { ...s, score: Math.min(10000000, Math.max(0, s.score + delta * 10)) } : s
+        );
+        newScores.sort((a, b) => b.score - a.score);
+        dbService.updateConfig({ scores: newScores });
     };
 
-    // Meal management
     const fetchMenu = async (restaurantQuery: string) => {
         const menuData = await generateMenuItems(restaurantQuery);
         const newMeals: Meal[] = menuData.menus.map((meal, index) => ({
@@ -256,61 +227,53 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             id: Date.now() + index,
             stock: 20,
         }));
-        setRestaurantInfo(menuData.restaurantInfo);
-        setMeals(newMeals);
-        setSelections([]); // Clear selections when menu changes
+        dbService.updateConfig({
+            restaurantInfo: menuData.restaurantInfo,
+            meals: newMeals,
+            selections: []
+        });
     };
 
     const addMeal = (meal: Omit<Meal, 'id'>) => {
         const newMeal: Meal = { ...meal, id: Date.now() };
-        setMeals(prev => [...prev, newMeal]);
+        dbService.updateConfig({ meals: [...meals, newMeal] });
     };
 
     const updateMeal = (updatedMeal: Meal) => {
-        setMeals(prev => prev.map(meal => meal.id === updatedMeal.id ? updatedMeal : meal));
+        const updatedMeals = meals.map(meal => meal.id === updatedMeal.id ? updatedMeal : meal);
+        dbService.updateConfig({ meals: updatedMeals });
     };
 
     const deleteMeal = (mealId: number) => {
-        setMeals(prev => prev.filter(meal => meal.id !== mealId));
+        const updatedMeals = meals.filter(meal => meal.id !== mealId);
+        dbService.updateConfig({ meals: updatedMeals });
     };
 
     const addSelection = (selection: MealSelection) => {
-        setSelections(prev => {
-             const existingSelection = prev.find(s => s.participantId === selection.participantId);
-             if(existingSelection) {
-                return prev.map(s => s.participantId === selection.participantId ? selection : s);
-             }
-             return [...prev, selection];
-        });
+        const newSelections = selections.filter(s => s.participantId !== selection.participantId);
+        newSelections.push(selection);
+        dbService.updateConfig({ selections: newSelections });
     };
     
     const addFeedback = (newFeedback: Omit<Feedback, 'id' | 'timestamp' | 'isAddressed'>) => {
         const feedbackItem: Feedback = {
             ...newFeedback,
-            id: `feedback_${Date.now()}`,
+            id: `feedback_${Date.now()}_${Math.random().toString(36).substring(7)}`,
             timestamp: Date.now(),
             isAddressed: false,
         };
-        setFeedback(prev => [feedbackItem, ...prev]);
+        dbService.addFeedback(feedbackItem);
     };
 
     const toggleFeedbackAddressed = (id: string) => {
-        setFeedback(prev =>
-            prev.map(item =>
-                item.id === id ? { ...item, isAddressed: !item.isAddressed } : item
-            )
-        );
+        const item = feedback.find(f => f.id === id);
+        if(item) {
+            dbService.toggleFeedbackAddressed(id, !item.isAddressed);
+        }
     };
 
     const addNetworkingInterest = async (interest: NetworkingInterest) => {
-        const updatedInterests = networkingInterests.filter(i => i.participantId !== interest.participantId);
-        updatedInterests.push(interest);
-        setNetworkingInterests(updatedInterests);
-        
-        if (updatedInterests.length >= 2) {
-            const matches = await generateNetworkingMatches(updatedInterests);
-            setNetworkingMatches(matches);
-        }
+        dbService.addNetworkingInterest(interest);
     };
     
     const generateAmbiancePlaylist = async (mood: AmbianceMood) => {
@@ -321,18 +284,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             HighEnergy: '분위기를 끌어올리는 신나고 에너지 넘치는 음악'
         };
         const playlists = await generateYouTubePlaylists(moodMap[mood]);
-        setAmbiancePlaylist({ mood, playlists });
+        dbService.updateConfig({ ambiancePlaylist: { mood, playlists } });
     };
 
     const generateWorkshopSummary = async () => {
-        if (feedback.length === 0 && networkingInterests.length === 0) {
-            alert("요약할 데이터가 없습니다. 피드백이나 네트워킹 데이터가 필요합니다.");
-            return;
-        }
         const summaries = await generateWorkshopSummaries(feedback, networkingInterests, ambiancePlaylist, scores);
-        setWorkshopSummary({
-            ...summaries,
-            generatedAt: new Date().toISOString(),
+        dbService.updateConfig({ 
+            workshopSummary: { ...summaries, generatedAt: new Date().toISOString() } 
         });
     };
 
@@ -345,7 +303,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     
     const updateWorkshopNotice = (notice: WorkshopNotice) => {
-        setWorkshopNotice(notice);
+        dbService.updateConfig({ workshopNotice: notice });
     };
 
     return (

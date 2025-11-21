@@ -6,6 +6,7 @@ import {
 } from '../types';
 import { DEFAULT_AMBIANCE_PLAYLIST } from "../constants";
 import { db } from '../firebaseConfig';
+import firebase from "firebase/compat/app";
 
 // API 키 존재 여부를 먼저 확인
 const API_KEY = process.env.API_KEY;
@@ -14,10 +15,6 @@ const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
 /**
  * Generates six styles of introductions using the Gemini API.
  * If the API key is not available, it returns a fallback response.
- * @param name - The person's name.
- * @param job - The person's job or affiliation.
- * @param interests - The person's interests.
- * @returns A promise that resolves to an array of objects with 'style' and 'text'.
  */
 export async function generateIntroductions(name: string, job: string, interests: string): Promise<Array<{ style: string, text: string }>> {
     const fallbackIntroductions = [
@@ -34,7 +31,7 @@ export async function generateIntroductions(name: string, job: string, interests
         return fallbackIntroductions;
     }
     try {
-        const prompt = `${name}이라는 이름의 사람을 위한 خود소개를 6가지 독창적이고 개성있는 스타일로 작성해줘. 직업은 ${job}이고, 관심사는 ${interests}야. 예를 들어 '열정 넘치는 탐험가', '미래에서 온 전략가', '따뜻한 이야기꾼'처럼 역할이나 성격을 부여해서 만들어줘. 각 자기소개는 100자 이내로 짧고 간결하게 작성해줘.`;
+        const prompt = `${name}이라는 이름의 사람을 위한 자기소개를 6가지 독창적이고 개성있는 스타일로 작성해줘. 직업은 ${job}이고, 관심사는 ${interests}야. 예를 들어 '열정 넘치는 탐험가', '미래에서 온 전략가', '따뜻한 이야기꾼'처럼 역할이나 성격을 부여해서 만들어줘. 각 자기소개는 100자 이내로 짧고 간결하게 작성해줘.`;
 
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
@@ -73,9 +70,6 @@ export async function generateIntroductions(name: string, job: string, interests
 
 /**
  * Generates a list of team names based on keywords using the Gemini API.
- * Returns a fallback list if the API key is not available.
- * @param keywords - Keywords describing the team's characteristics.
- * @returns A promise that resolves to an array of suggested team names.
  */
 export async function generateTeamNames(keywords: string): Promise<string[]> {
     if (!ai) {
@@ -118,9 +112,6 @@ export async function generateTeamNames(keywords: string): Promise<string[]> {
 
 /**
  * Generates a motivational message based on a topic using the Gemini API.
- * Returns a fallback quote if the API key is missing.
- * @param topic - The topic for the motivational message.
- * @returns A promise that resolves to a motivational message string.
  */
 export async function generateMotivation(topic: string): Promise<string> {
     if (!ai) {
@@ -144,8 +135,6 @@ export async function generateMotivation(topic: string): Promise<string> {
 
 /**
  * Generates networking matches for participants based on their interests.
- * @param interests - An array of participant interests.
- * @returns A promise that resolves to a record of matches for each participant.
  */
 export async function generateNetworkingMatches(interests: NetworkingInterest[]): Promise<Record<string, NetworkingMatch[]>> {
     if (!ai) {
@@ -233,8 +222,6 @@ ${JSON.stringify(participantData)}
 
 /**
  * Generates a list of YouTube playlists based on a mood using the Gemini API.
- * @param mood - The mood or theme for the playlist.
- * @returns A promise that resolves to an array of YouTubePlaylist objects.
  */
 export async function generateYouTubePlaylists(mood: string): Promise<YouTubePlaylist[]> {
     const fallbackPlaylist: YouTubePlaylist[] = [
@@ -303,11 +290,6 @@ export async function generateYouTubePlaylists(mood: string): Promise<YouTubePla
 
 /**
  * Generates summaries for workshop feedback and networking interests.
- * @param feedback - An array of feedback items.
- * @param interests - An array of networking interests.
- * @param ambiance - The current ambiance playlist.
- * @param scores - The current team scores.
- * @returns A promise that resolves to an object with summaries.
  */
 export async function generateWorkshopSummaries(
     feedback: Feedback[], 
@@ -382,8 +364,6 @@ export async function generateWorkshopSummaries(
 
 /**
  * Generates a personalized welcome message for a participant.
- * @param name - The participant's name.
- * @returns A promise that resolves to a welcome message.
  */
 export async function generateWelcomeMessage(name: string): Promise<string> {
     const fallback = `${name}님, 환영합니다! 오늘 워크숍에서 멋진 시간을 보내세요!`;
@@ -404,8 +384,6 @@ export async function generateWelcomeMessage(name: string): Promise<string> {
 
 /**
  * Generates a dynamic reply to submitted feedback.
- * @param category - The category of the feedback.
- * @returns A promise that resolves to a reply message.
  */
 export async function generateFeedbackReply(category: FeedbackCategory): Promise<string> {
     const fallbacks = {
@@ -436,8 +414,6 @@ export async function generateFeedbackReply(category: FeedbackCategory): Promise
 
 /**
  * Generates a fun reaction to a meal selection.
- * @param mealName - The name of the selected meal.
- * @returns A promise that resolves to a reaction message.
  */
 export async function generateMealReaction(mealName: string): Promise<string> {
     const fallback = `${mealName}, 탁월한 선택이에요!`;
@@ -458,8 +434,6 @@ export async function generateMealReaction(mealName: string): Promise<string> {
 
 /**
  * Generates a list of menu items for a given restaurant using the Gemini API.
- * @param restaurantQuery - The name and location of the restaurant.
- * @returns A promise that resolves to an object containing restaurant info and menu items.
  */
 export async function generateMenuItems(restaurantQuery: string): Promise<{ restaurantInfo: RestaurantInfo, menus: Omit<Meal, 'id' | 'stock'>[] }> {
     const fallbackData = {
@@ -538,93 +512,111 @@ export async function generateMenuItems(restaurantQuery: string): Promise<{ rest
 }
 
 
-// --- DB Service with Firebase ---
+// --- Robust DB Service with Firestore Collections for Scale (40+ Users) ---
 
-const WORKSHOP_DOC_ID = 'main_workshop_data'; // Using a single document for the entire workshop state
+const COLLECTION_PARTICIPANTS = 'participants';
+const COLLECTION_FEEDBACK = 'feedback';
+const COLLECTION_NETWORKING = 'networking';
+const COLLECTION_CONFIG = 'config'; // Shared config (Teams, Meals, Notice, etc.)
+const CONFIG_DOC_ID = 'global_settings';
 
-interface DbState {
-    participants: Participant[];
+interface ConfigState {
     introductions: Introduction[];
     teams: Team[];
     scores: TeamScore[];
     restaurantInfo: RestaurantInfo | null;
     meals: Meal[];
     selections: MealSelection[];
-    feedback: Feedback[];
-    networkingInterests: NetworkingInterest[];
     ambiancePlaylist: AmbiancePlaylist | null;
     workshopSummary: WorkshopSummary | null;
     workshopNotice: WorkshopNotice | null;
 }
 
-function getInitialState(): DbState {
-    return {
-        participants: [],
-        introductions: [],
-        teams: [],
-        scores: [],
-        restaurantInfo: {name: '순남시래기 방배점', address: '', mapUrl: ''},
-        meals: [],
-        selections: [],
-        feedback: [],
-        networkingInterests: [],
-        ambiancePlaylist: DEFAULT_AMBIANCE_PLAYLIST,
-        workshopSummary: null,
-        workshopNotice: null,
-    };
-}
+const INITIAL_CONFIG: ConfigState = {
+    introductions: [],
+    teams: [],
+    scores: [],
+    restaurantInfo: {name: '순남시래기 방배점', address: '', mapUrl: ''},
+    meals: [],
+    selections: [],
+    ambiancePlaylist: DEFAULT_AMBIANCE_PLAYLIST,
+    workshopSummary: null,
+    workshopNotice: null,
+};
 
-/**
- * Saves the entire workshop data to Firestore.
- * @param data - The complete state of the workshop.
- */
-export async function saveWorkshopData(data: DbState): Promise<{ success: boolean }> {
-    if (!db) {
-        console.error("Firebase is not initialized.");
-        return { success: false };
-    }
-    try {
-        // Corrected: Use namespaced (v8/compat) API
-        const workshopDocRef = db.collection('workshops').doc(WORKSHOP_DOC_ID);
-        // Corrected: Use namespaced (v8/compat) API
-        await workshopDocRef.set(data, { merge: true }); // Use merge to avoid overwriting with partial data
-        return { success: true };
-    } catch (error) {
-        console.error("Failed to save data to Firestore", error);
-        return { success: false };
-    }
-}
-
-/**
- * Listens for real-time updates from Firestore and calls the callback function.
- * @param callback - A function to be called with the updated data.
- * @returns An unsubscribe function to stop listening to updates.
- */
-export function listenForWorkshopUpdates(callback: (data: DbState) => void): () => void {
-    if (!db) {
-        console.error("Firebase is not initialized.");
-        return () => {}; // Return a no-op unsubscribe function
-    }
-    // Use namespaced (v8/compat) API
-    const workshopDocRef = db.collection('workshops').doc(WORKSHOP_DOC_ID);
+export const dbService = {
+    // --- Participants ---
+    async addParticipant(participant: Participant) {
+        if (!db) return;
+        // Use set with merge to prevent overwriting if re-joining, but allows updating details
+        await db.collection(COLLECTION_PARTICIPANTS).doc(participant.id).set(participant, { merge: true });
+    },
     
-    // Use namespaced (v8/compat) API
-    const unsubscribe = workshopDocRef.onSnapshot((docSnap) => {
-        // With the Firebase v8 compat API, `exists` is a boolean property.
-        if (docSnap.exists) {
-            const data = docSnap.data();
-            callback({ ...getInitialState(), ...data } as DbState);
-        } else {
-            // Document doesn't exist, create it with initial state
-            console.log("No workshop document found, creating one with initial state.");
-            const initialState = getInitialState();
-            saveWorkshopData(initialState).then(() => {
-                callback(initialState);
-            });
-        }
-    }, (error) => {
-        console.error("Error listening to workshop updates:", error);
-    });
+    async removeParticipant(participantId: string) {
+        if (!db) return;
+        await db.collection(COLLECTION_PARTICIPANTS).doc(participantId).delete();
+        // Also clean up related data in config if needed, or rely on client-side filter
+    },
 
-    return unsubscribe;
-}
+    // --- Feedback ---
+    async addFeedback(feedback: Feedback) {
+        if (!db) return;
+        await db.collection(COLLECTION_FEEDBACK).doc(feedback.id).set(feedback);
+    },
+
+    async toggleFeedbackAddressed(feedbackId: string, isAddressed: boolean) {
+        if (!db) return;
+        await db.collection(COLLECTION_FEEDBACK).doc(feedbackId).update({ isAddressed });
+    },
+
+    // --- Networking ---
+    async addNetworkingInterest(interest: NetworkingInterest) {
+        if (!db) return;
+        await db.collection(COLLECTION_NETWORKING).doc(interest.participantId).set(interest);
+    },
+
+    // --- Global Config (Admin heavy) ---
+    async updateConfig(data: Partial<ConfigState>) {
+        if (!db) return;
+        await db.collection(COLLECTION_CONFIG).doc(CONFIG_DOC_ID).set(data, { merge: true });
+    },
+
+    // --- Listeners ---
+    listenToParticipants(callback: (participants: Participant[]) => void) {
+        if (!db) return () => {};
+        return db.collection(COLLECTION_PARTICIPANTS).onSnapshot(snapshot => {
+            const participants = snapshot.docs.map(doc => doc.data() as Participant);
+            callback(participants);
+        });
+    },
+
+    listenToFeedback(callback: (feedback: Feedback[]) => void) {
+        if (!db) return () => {};
+        // Order by timestamp desc
+        return db.collection(COLLECTION_FEEDBACK).orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+            const feedback = snapshot.docs.map(doc => doc.data() as Feedback);
+            callback(feedback);
+        });
+    },
+
+    listenToNetworking(callback: (interests: NetworkingInterest[]) => void) {
+        if (!db) return () => {};
+        return db.collection(COLLECTION_NETWORKING).onSnapshot(snapshot => {
+            const interests = snapshot.docs.map(doc => doc.data() as NetworkingInterest);
+            callback(interests);
+        });
+    },
+
+    listenToConfig(callback: (config: ConfigState) => void) {
+        if (!db) return () => {};
+        return db.collection(COLLECTION_CONFIG).doc(CONFIG_DOC_ID).onSnapshot(doc => {
+            if (doc.exists) {
+                callback({ ...INITIAL_CONFIG, ...doc.data() } as ConfigState);
+            } else {
+                // Initialize if doesn't exist
+                db.collection(COLLECTION_CONFIG).doc(CONFIG_DOC_ID).set(INITIAL_CONFIG);
+                callback(INITIAL_CONFIG);
+            }
+        });
+    }
+};
